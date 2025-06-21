@@ -242,7 +242,8 @@ function parseAnalysisResult(resultText: string): ParsedAnalysis {
 }
 
 const getValueWithComplianceIcon = (value: string): JSX.Element => {
-  const lowerValue = value.toLowerCase();
+  const cleanValue = cleanMarkdownText(value);
+  const lowerValue = cleanValue.toLowerCase();
   let icon = null;
 
   if (lowerValue.includes("compliant") || lowerValue.includes("appears correct") || lowerValue.includes("present and correct") || lowerValue.includes("verified")) {
@@ -253,7 +254,23 @@ const getValueWithComplianceIcon = (value: string): JSX.Element => {
      icon = <Info className="inline h-4 w-4 mr-1 text-yellow-400 flex-shrink-0" />;
   }
   
-  return <span className="flex items-start">{icon}{value}</span>;
+  return <span className="flex items-start">{icon}{cleanValue}</span>;
+};
+
+// Helper function to clean markdown formatting from text
+const cleanMarkdownText = (text: string): string => {
+  if (!text) return text;
+  
+  return text
+    // Remove bold markdown **text**
+    .replace(/\*\*(.*?)\*\*/g, '$1')
+    // Remove italic markdown *text*
+    .replace(/\*(.*?)\*/g, '$1')
+    // Remove code markdown `text`
+    .replace(/`(.*?)`/g, '$1')
+    // Remove extra whitespace
+    .replace(/\s+/g, ' ')
+    .trim();
 };
 
 // Helper function to determine compliance status from text
@@ -306,80 +323,107 @@ const RenderReportItem: React.FC<{ item: ReportItem }> = ({ item }) => {
   
   // Extract number prefix from fullItemTitle for display
   const prefixMatch = item.fullItemTitle.match(/^(\d+\.\s+)/);
-  const displayPrefix = prefixMatch ? prefixMatch[0] : ""; // Use group 0 for the full prefix match e.g. "1.  "
+  const displayPrefix = prefixMatch ? prefixMatch[0] : "";
+  
+  // Clean the item title
+  const cleanTitle = cleanMarkdownText(item.title);
 
   // Get compliance status for the item to show in the header
   const complianceNote = item.details.find(detail => detail.isComplianceNote);
   const complianceStatus = complianceNote ? getComplianceStatus(complianceNote.value) : 'unknown';
   
-  // Determine header styling based on compliance status
-  let headerBgColor = 'bg-slate-100 dark:bg-slate-700';
-  let headerTextColor = 'text-slate-700 dark:text-slate-300';
+  // Determine styling based on compliance status
+  let statusColor = 'text-slate-600 dark:text-slate-400';
   let StatusIcon = Info;
+  let statusBadge = 'Unknown';
   
   switch (complianceStatus) {
     case 'compliant':
-      headerBgColor = 'bg-green-50 dark:bg-green-900/20 border-l-4 border-green-500';
-      headerTextColor = 'text-green-800 dark:text-green-200';
+      statusColor = 'text-green-600 dark:text-green-400';
       StatusIcon = CheckCircle;
+      statusBadge = 'Compliant';
       break;
     case 'non-compliant':
-      headerBgColor = 'bg-red-50 dark:bg-red-900/20 border-l-4 border-red-500';
-      headerTextColor = 'text-red-800 dark:text-red-200';
+      statusColor = 'text-red-600 dark:text-red-400';
       StatusIcon = AlertTriangle;
+      statusBadge = 'Non-Compliant';
       break;
     case 'partial':
-      headerBgColor = 'bg-yellow-50 dark:bg-yellow-900/20 border-l-4 border-yellow-500';
-      headerTextColor = 'text-yellow-800 dark:text-yellow-200';
+      statusColor = 'text-yellow-600 dark:text-yellow-400';
       StatusIcon = Info;
+      statusBadge = 'Needs Review';
+      break;
+    default:
+      statusColor = 'text-slate-600 dark:text-slate-400';
+      StatusIcon = Info;
+      statusBadge = 'Unknown';
       break;
   }
 
   return (
-    <div className="mb-3 bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-600 transition-colors duration-300">
+    <div className="mb-3 bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-600 transition-all duration-300 hover:shadow-md">
       <button
         onClick={() => setIsExpanded(!isExpanded)}
-        className={`w-full p-4 text-left transition-colors duration-200 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700/50 ${headerBgColor}`}
+        className="w-full p-4 text-left transition-colors duration-200 hover:bg-slate-50 dark:hover:bg-slate-700/50 rounded-lg"
       >
         <div className="flex items-center justify-between">
-          <div className={`flex items-center space-x-3 ${headerTextColor}`}>
-            <StatusIcon className="h-5 w-5 flex-shrink-0" />
-            <div className="flex-1">
-              <span className="font-medium">
-                {displayPrefix}{item.title}
-              </span>
+          <div className="flex items-center space-x-3 flex-1">
+            <StatusIcon className={`h-5 w-5 flex-shrink-0 ${statusColor}`} />
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center justify-between">
+                <span className="font-medium text-slate-800 dark:text-slate-200 truncate">
+                  {displayPrefix}{cleanTitle}
+                </span>
+                <span className={`ml-3 px-2 py-1 text-xs font-medium rounded-full flex-shrink-0 ${
+                  complianceStatus === 'compliant' ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300' :
+                  complianceStatus === 'non-compliant' ? 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300' :
+                  complianceStatus === 'partial' ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300' :
+                  'bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-400'
+                }`}>
+                  {statusBadge}
+                </span>
+              </div>
               {complianceNote && (
-                <div className="text-sm mt-1 opacity-90">
-                  {complianceNote.value.length > 100 
-                    ? `${complianceNote.value.substring(0, 100)}...` 
-                    : complianceNote.value
+                <div className="text-sm text-slate-600 dark:text-slate-400 mt-1 truncate">
+                  {cleanMarkdownText(complianceNote.value).length > 80 
+                    ? `${cleanMarkdownText(complianceNote.value).substring(0, 80)}...` 
+                    : cleanMarkdownText(complianceNote.value)
                   }
                 </div>
               )}
             </div>
           </div>
-          <div className="flex items-center space-x-2">
+          <div className="flex items-center ml-3">
             {isExpanded ? (
-              <ChevronDown className="h-5 w-5 text-slate-500" />
+              <ChevronDown className="h-5 w-5 text-slate-400" />
             ) : (
-              <ChevronRight className="h-5 w-5 text-slate-500" />
+              <ChevronRight className="h-5 w-5 text-slate-400" />
             )}
           </div>
         </div>
       </button>
       
       {isExpanded && (
-        <div className="px-4 pb-4 border-t border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-700/30">
-          <dl className="space-y-3 mt-4">
+        <div className="border-t border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-700/30">
+          <div className="p-4 space-y-4">
             {item.details.map((detail, index) => (
-              <div key={index} className="grid grid-cols-1 md:grid-cols-12 gap-x-3 gap-y-1 py-2">
-                <dt className="font-medium text-slate-700 dark:text-slate-300 md:col-span-4 lg:col-span-3">{detail.label}:</dt>
-                <dd className={`md:col-span-8 lg:col-span-9 text-slate-800 dark:text-slate-200 whitespace-pre-wrap ${detail.isComplianceNote ? 'bg-slate-200 dark:bg-slate-600/30 p-3 rounded-md' : 'pt-0.5'}`}>
-                  {detail.isComplianceNote ? getValueWithComplianceIcon(detail.value) : detail.value}
+              <div key={index} className="space-y-2">
+                <dt className="font-medium text-slate-700 dark:text-slate-300 text-sm">
+                  {cleanMarkdownText(detail.label)}:
+                </dt>
+                <dd className={`text-slate-800 dark:text-slate-200 ${
+                  detail.isComplianceNote 
+                    ? 'bg-white dark:bg-slate-600/30 p-3 rounded-md border-l-4 border-sky-500' 
+                    : 'pl-3'
+                }`}>
+                  {detail.isComplianceNote 
+                    ? getValueWithComplianceIcon(cleanMarkdownText(detail.value))
+                    : cleanMarkdownText(detail.value)
+                  }
                 </dd>
               </div>
             ))}
-          </dl>
+          </div>
         </div>
       )}
     </div>
