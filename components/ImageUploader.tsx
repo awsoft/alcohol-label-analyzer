@@ -55,8 +55,8 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({ onFileSelect, prev
         className={`
           flex flex-col items-center justify-center w-full h-64 
           border-2 border-dashed rounded-lg cursor-pointer 
-          bg-slate-700/50 hover:bg-slate-600/50 transition-colors
-          ${dragOver ? 'border-sky-500 bg-sky-700/30' : 'border-slate-600'}
+          bg-slate-100 dark:bg-slate-700/50 hover:bg-slate-200 dark:hover:bg-slate-600/50 transition-colors
+          ${dragOver ? 'border-sky-500 bg-sky-100 dark:bg-sky-700/30' : 'border-slate-300 dark:border-slate-600'}
           ${disabled ? 'cursor-not-allowed opacity-60' : ''}
         `}
         aria-disabled={disabled}
@@ -76,11 +76,11 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({ onFileSelect, prev
           </div>
         ) : (
           <div className="flex flex-col items-center justify-center pt-5 pb-6 text-center px-4">
-            <UploadCloud className={`w-12 h-12 mb-3 ${dragOver ? 'text-sky-400' : 'text-slate-400'}`} />
-            <p className={`mb-2 text-sm ${dragOver ? 'text-sky-300' : 'text-slate-300'}`}>
+            <UploadCloud className={`w-12 h-12 mb-3 ${dragOver ? 'text-sky-500' : 'text-slate-500 dark:text-slate-400'}`} />
+            <p className={`mb-2 text-sm ${dragOver ? 'text-sky-600 dark:text-sky-300' : 'text-slate-700 dark:text-slate-300'}`}>
               <span className="font-semibold">Click to upload</span> or drag and drop
             </p>
-            <p className="text-xs text-slate-500 px-2">
+            <p className="text-xs text-slate-600 dark:text-slate-500 px-2">
               Supported: PNG, JPG, WEBP, HEIC, HEIF. Others (like AVIF) converted to PNG. Max 5MB.
             </p>
           </div>
@@ -95,7 +95,7 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({ onFileSelect, prev
         />
       </label>
       {previewUrl && !disabled && (
-         <p className="text-xs text-slate-400 text-center">Change image by clicking or dragging a new one above.</p>
+         <p className="text-xs text-slate-600 dark:text-slate-400 text-center">Change image by clicking or dragging a new one above.</p>
       )}
     </div>
   );

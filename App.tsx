@@ -224,7 +224,7 @@ const App: React.FC = () => {
               <button
                 onClick={handleAnalyze}
                 disabled={!uploadedFile || !imageBase64 || isLoading || apiKeyMissing}
-                className="w-full bg-sky-600 hover:bg-sky-500 disabled:bg-slate-600 text-white font-semibold py-3 px-6 rounded-lg shadow-md transition-colors duration-200 flex items-center justify-center space-x-2 text-lg disabled:cursor-not-allowed"
+                className="w-full bg-sky-600 hover:bg-sky-500 disabled:bg-slate-400 dark:disabled:bg-slate-600 text-white font-semibold py-3 px-6 rounded-lg shadow-md transition-colors duration-200 flex items-center justify-center space-x-2 text-lg disabled:cursor-not-allowed"
               >
                 {isLoading && (!analysisResult && !currentError) ? <LoadingSpinner /> : <CheckCircle className="h-5 w-5" />}
                 <span>{isLoading && (!analysisResult && !currentError) ? 'Processing...' : 'Analyze Label'}</span>
@@ -242,16 +242,16 @@ const App: React.FC = () => {
                 </div>
               )}
               {isLoading && !analysisResult && !currentError && (
-                 <div className="p-4 bg-slate-700 rounded-lg flex items-center justify-center min-h-[200px]">
+                 <div className="p-4 bg-slate-100 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg flex items-center justify-center min-h-[200px] transition-colors duration-300">
                     <LoadingSpinner />
-                    <p className="ml-3 text-slate-300">AI is thinking or image is processing... please wait.</p>
+                    <p className="ml-3 text-slate-700 dark:text-slate-300">AI is thinking or image is processing... please wait.</p>
                  </div>
               )}
               {!isLoading && !analysisResult && !currentError && !apiKeyMissing && (
-                <div className="p-10 bg-slate-700/50 border-2 border-dashed border-slate-600 rounded-lg flex flex-col items-center justify-center min-h-[200px] text-center">
-                  <UploadCloud className="h-12 w-12 text-sky-500 mb-4" /> {/* Changed icon */}
-                  <h3 className="text-xl font-semibold text-slate-300">Awaiting Label Submission</h3>
-                  <p className="text-slate-400">Upload a label image and click "Analyze Label" to see the compliance report here.</p>
+                <div className="p-10 bg-slate-50 dark:bg-slate-700/50 border-2 border-dashed border-slate-300 dark:border-slate-600 rounded-lg flex flex-col items-center justify-center min-h-[200px] text-center transition-colors duration-300">
+                  <UploadCloud className="h-12 w-12 text-sky-500 mb-4" />
+                  <h3 className="text-xl font-semibold text-slate-700 dark:text-slate-300">Awaiting Label Submission</h3>
+                  <p className="text-slate-600 dark:text-slate-400">Upload a label image and click "Analyze Label" to see the compliance report here.</p>
                 </div>
               )}
               {analysisResult && !currentError && <AnalysisDisplay result={analysisResult} />}

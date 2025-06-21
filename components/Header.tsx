@@ -50,11 +50,18 @@ export const Header: React.FC = () => {
         <div className="flex items-center space-x-4">
           <div className="flex items-center space-x-2">
             <span className={`text-sm ${isDarkMode ? 'text-slate-400' : 'text-slate-600'}`}>Powered by</span>
-            <img 
-              src={isDarkMode ? "/assets/images/aardwolf-logo-dark.png" : "/assets/images/aardwolf-logo-light.png"}
-              alt="Aardwolf" 
-              className="h-8 w-auto"
-            />
+            <a 
+              href="https://AardwolfIT.com" 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="hover:opacity-80 transition-opacity duration-200"
+            >
+              <img 
+                src={isDarkMode ? "/assets/images/aardwolf-logo-dark.png" : "/assets/images/aardwolf-logo-light.png"}
+                alt="Aardwolf" 
+                className="h-8 w-auto"
+              />
+            </a>
           </div>
           
           {/* Settings Menu */}
