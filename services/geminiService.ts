@@ -36,14 +36,16 @@ export const analyzeLabelViaservice = async (
     if (productRequirements) {
       const requirementsText = `
 
-**PRODUCT REQUIREMENTS SPECIFIED BY USER:**
-Based on the user's product knowledge, please pay special attention to these items:
+**CRITICAL: PRODUCT REQUIREMENTS SPECIFIED BY USER:**
+The user has specified which ingredients are present in their product. You MUST follow these instructions exactly:
 
-${productRequirements.includesSulfites ? '- Item 8 (Declaration of Sulfites): This product CONTAINS sulfites - evaluate if the sulfite declaration is present and compliant.' : '- Item 8 (Declaration of Sulfites): This product does NOT contain sulfites - mark as "NOT REQUIRED: This product does not contain sulfites."'}
+${productRequirements.includesSulfites ? '- Item 8 (Declaration of Sulfites): This product CONTAINS sulfites. Look for sulfite declarations and evaluate compliance. If missing, mark as "NON-COMPLIANT: Required sulfite declaration is missing."' : '- Item 8 (Declaration of Sulfites): This product does NOT contain sulfites. You MUST mark TTB Compliance Notes as "NOT REQUIRED: This product does not contain sulfites." Do not evaluate for sulfite declarations.'}
 
-${productRequirements.includesYellowNumberFive ? '- Item 9 (Declaration of FD&C Yellow No. 5): This product CONTAINS FD&C Yellow No. 5 - evaluate if the declaration is present and compliant.' : '- Item 9 (Declaration of FD&C Yellow No. 5): This product does NOT contain FD&C Yellow No. 5 - mark as "NOT REQUIRED: This product does not contain FD&C Yellow No. 5."'}
+${productRequirements.includesYellowNumberFive ? '- Item 9 (Declaration of FD&C Yellow No. 5): This product CONTAINS FD&C Yellow No. 5. Look for FD&C Yellow No. 5 declarations and evaluate compliance. If missing, mark as "NON-COMPLIANT: Required FD&C Yellow No. 5 declaration is missing."' : '- Item 9 (Declaration of FD&C Yellow No. 5): This product does NOT contain FD&C Yellow No. 5. You MUST mark TTB Compliance Notes as "NOT REQUIRED: This product does not contain FD&C Yellow No. 5." Do not evaluate for color declarations.'}
 
-${productRequirements.includesAspartame ? '- Item 10 (Declaration of Aspartame): This product CONTAINS aspartame - evaluate if the aspartame/phenylalanine declaration is present and compliant.' : '- Item 10 (Declaration of Aspartame): This product does NOT contain aspartame - mark as "NOT REQUIRED: This product does not contain aspartame."'}
+${productRequirements.includesAspartame ? '- Item 10 (Declaration of Aspartame): This product CONTAINS aspartame. Look for aspartame/phenylalanine declarations and evaluate compliance. If missing, mark as "NON-COMPLIANT: Required aspartame declaration is missing."' : '- Item 10 (Declaration of Aspartame): This product does NOT contain aspartame. You MUST mark TTB Compliance Notes as "NOT REQUIRED: This product does not contain aspartame." Do not evaluate for aspartame declarations.'}
+
+REMEMBER: Start each TTB Compliance Notes section with the exact status: "COMPLIANT:", "NON-COMPLIANT:", "POTENTIAL ISSUE:", or "NOT REQUIRED:"
 
 `;
       enhancedPrompt += requirementsText;

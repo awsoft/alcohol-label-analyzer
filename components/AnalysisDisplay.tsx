@@ -280,19 +280,20 @@ const getComplianceStatus = (value: string): 'compliant' | 'non-compliant' | 'pa
   const lowerValue = value.toLowerCase();
   
   // Check for explicit status indicators from the new prompt format first
-  if (lowerValue.startsWith("compliant:") || lowerValue.includes("compliant:")) {
+  // Look for the exact format: "STATUS:" at the beginning or after whitespace
+  if (lowerValue.match(/(?:^|\s)compliant:/)) {
     return 'compliant';
   }
   
-  if (lowerValue.startsWith("non-compliant:") || lowerValue.includes("non-compliant:")) {
+  if (lowerValue.match(/(?:^|\s)non-compliant:/)) {
     return 'non-compliant';
   }
   
-  if (lowerValue.startsWith("potential issue:") || lowerValue.includes("potential issue:")) {
+  if (lowerValue.match(/(?:^|\s)potential issue:/)) {
     return 'partial';
   }
   
-  if (lowerValue.startsWith("not required:") || lowerValue.includes("not required:")) {
+  if (lowerValue.match(/(?:^|\s)not required:/)) {
     return 'compliant';
   }
   
@@ -372,27 +373,32 @@ const calculateComplianceScore = (parsedAnalysis: ParsedAnalysis, productRequire
     mandatorySection.items.forEach((item, index) => {
       // Items 8, 9, and 10 (0-indexed as 7, 8, 9) are conditional
       const itemNumber = index + 1;
-      let shouldInclude = true;
-      
-      if (productRequirements) {
-        if (itemNumber === 8 && !productRequirements.includesSulfites) {
-          shouldInclude = false;
-        } else if (itemNumber === 9 && !productRequirements.includesYellowNumberFive) {
-          shouldInclude = false;
-        } else if (itemNumber === 10 && !productRequirements.includesAspartame) {
-          shouldInclude = false;
-        }
-      }
-      
-      if (!shouldInclude) {
-        return; // Skip this item in compliance calculation
-      }
       
       // Look for TTB Compliance Notes in the item details
       const complianceNote = item.details.find(detail => detail.isComplianceNote);
       if (complianceNote) {
-        totalCount++;
         const status = getComplianceStatus(complianceNote.value);
+        const lowerValue = complianceNote.value.toLowerCase();
+        
+        // Check if this item should be excluded based on product requirements
+        let shouldExclude = false;
+        if (productRequirements) {
+          if (itemNumber === 8 && !productRequirements.includesSulfites && lowerValue.match(/(?:^|\s)not required:/)) {
+            shouldExclude = true;
+          } else if (itemNumber === 9 && !productRequirements.includesYellowNumberFive && lowerValue.match(/(?:^|\s)not required:/)) {
+            shouldExclude = true;
+          } else if (itemNumber === 10 && !productRequirements.includesAspartame && lowerValue.match(/(?:^|\s)not required:/)) {
+            shouldExclude = true;
+          }
+        }
+        
+        // If item is marked as "NOT REQUIRED" and checkbox is unchecked, exclude from scoring
+        if (shouldExclude) {
+          return; // Skip this item in compliance calculation
+        }
+        
+        // Include this item in the compliance calculation
+        totalCount++;
         if (status === 'compliant') {
           compliantCount++;
         }
