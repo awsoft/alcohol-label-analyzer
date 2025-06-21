@@ -86,8 +86,8 @@ const App: React.FC = () => {
   // Product requirements state
   const [productRequirements, setProductRequirements] = useState<ProductRequirements>({
     includesSulfites: true,
-    includesAlcoholContent: true,
-    includesAllergens: true,
+    includesYellowNumberFive: true,
+    includesAspartame: true,
   });
 
   useEffect(() => {
@@ -214,7 +214,7 @@ const App: React.FC = () => {
           <Settings className="h-5 w-5 text-slate-600 dark:text-slate-400 mr-3" />
           <div>
             <h3 className="font-semibold text-slate-800 dark:text-slate-200">Product Requirements</h3>
-            <p className="text-sm text-slate-600 dark:text-slate-400">Select which items apply to your product</p>
+            <p className="text-sm text-slate-600 dark:text-slate-400">Do these apply to your product? (Items 8, 9, 10)</p>
           </div>
         </div>
         
@@ -228,33 +228,33 @@ const App: React.FC = () => {
             />
             <div>
               <span className="text-slate-800 dark:text-slate-200 font-medium">Declaration of Sulfites</span>
-              <p className="text-sm text-slate-600 dark:text-slate-400">Required for wine containing 10+ ppm sulfur dioxide</p>
+              <p className="text-sm text-slate-600 dark:text-slate-400">Check if your product contains sulfites</p>
             </div>
           </label>
           
           <label className="flex items-center space-x-3 cursor-pointer">
             <input
               type="checkbox"
-              checked={productRequirements.includesAlcoholContent}
-              onChange={(e) => setProductRequirements({ ...productRequirements, includesAlcoholContent: e.target.checked })}
+              checked={productRequirements.includesYellowNumberFive}
+              onChange={(e) => setProductRequirements({ ...productRequirements, includesYellowNumberFive: e.target.checked })}
               className="w-4 h-4 text-sky-600 bg-white dark:bg-slate-700 border-slate-300 dark:border-slate-500 rounded focus:ring-sky-500 focus:ring-2"
             />
             <div>
-              <span className="text-slate-800 dark:text-slate-200 font-medium">Alcohol Content/ABV</span>
-              <p className="text-sm text-slate-600 dark:text-slate-400">Required for certain beverage types and strengths</p>
+              <span className="text-slate-800 dark:text-slate-200 font-medium">Declaration of Yellow Number Five</span>
+              <p className="text-sm text-slate-600 dark:text-slate-400">Check if your product contains Yellow #5 dye</p>
             </div>
           </label>
           
           <label className="flex items-center space-x-3 cursor-pointer">
             <input
               type="checkbox"
-              checked={productRequirements.includesAllergens}
-              onChange={(e) => setProductRequirements({ ...productRequirements, includesAllergens: e.target.checked })}
+              checked={productRequirements.includesAspartame}
+              onChange={(e) => setProductRequirements({ ...productRequirements, includesAspartame: e.target.checked })}
               className="w-4 h-4 text-sky-600 bg-white dark:bg-slate-700 border-slate-300 dark:border-slate-500 rounded focus:ring-sky-500 focus:ring-2"
             />
             <div>
-              <span className="text-slate-800 dark:text-slate-200 font-medium">Declaration of Allergens</span>
-              <p className="text-sm text-slate-600 dark:text-slate-400">Required if allergens are present in the product</p>
+              <span className="text-slate-800 dark:text-slate-200 font-medium">Declaration of Aspartame</span>
+              <p className="text-sm text-slate-600 dark:text-slate-400">Check if your product contains aspartame</p>
             </div>
           </label>
         </div>

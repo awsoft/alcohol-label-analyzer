@@ -279,11 +279,25 @@ const cleanMarkdownText = (text: string): string => {
 const getComplianceStatus = (value: string): 'compliant' | 'non-compliant' | 'partial' | 'unknown' => {
   const lowerValue = value.toLowerCase();
   
-  if (lowerValue.includes("compliant") && !lowerValue.includes("non-compliant")) {
-    return 'compliant';
-  } else if (lowerValue.includes("non-compliant") || lowerValue.includes("missing") || lowerValue.includes("not present") || lowerValue.includes("incorrect") || lowerValue.includes("violation")) {
+  // Check for explicit non-compliance first
+  if (lowerValue.includes("non-compliant") || lowerValue.includes("missing") || lowerValue.includes("not present") || 
+      lowerValue.includes("incorrect") || lowerValue.includes("violation") || lowerValue.includes("absent") ||
+      lowerValue.includes("not found") || lowerValue.includes("lacks") || lowerValue.includes("fails to")) {
     return 'non-compliant';
-  } else if (lowerValue.includes("unclear") || lowerValue.includes("potential concern") || lowerValue.includes("partially visible")) {
+  }
+  
+  // Check for explicit compliance
+  if (lowerValue.includes("compliant") || lowerValue.includes("present") || lowerValue.includes("correctly") || 
+      lowerValue.includes("appropriate") || lowerValue.includes("properly") || lowerValue.includes("adequate") ||
+      lowerValue.includes("satisfies") || lowerValue.includes("meets") || lowerValue.includes("includes") ||
+      lowerValue.includes("displays") || lowerValue.includes("shows") || lowerValue.includes("contains") ||
+      lowerValue.includes("visible") || lowerValue.includes("clear") || lowerValue.includes("legible")) {
+    return 'compliant';
+  }
+  
+  // Check for partial compliance
+  if (lowerValue.includes("unclear") || lowerValue.includes("potential concern") || lowerValue.includes("partially") ||
+      lowerValue.includes("somewhat") || lowerValue.includes("may need") || lowerValue.includes("could be")) {
     return 'partial';
   }
   
@@ -306,9 +320,9 @@ const calculateComplianceScore = (parsedAnalysis: ParsedAnalysis, productRequire
       if (productRequirements) {
         if (itemNumber === 8 && !productRequirements.includesSulfites) {
           shouldInclude = false;
-        } else if (itemNumber === 9 && !productRequirements.includesAlcoholContent) {
+        } else if (itemNumber === 9 && !productRequirements.includesYellowNumberFive) {
           shouldInclude = false;
-        } else if (itemNumber === 10 && !productRequirements.includesAllergens) {
+        } else if (itemNumber === 10 && !productRequirements.includesAspartame) {
           shouldInclude = false;
         }
       }

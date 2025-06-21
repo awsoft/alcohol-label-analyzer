@@ -62,6 +62,6 @@ export interface ParsedAnalysis {
 // Interface for product requirements
 export interface ProductRequirements {
   includesSulfites: boolean;
-  includesAlcoholContent: boolean;
-  includesAllergens: boolean;
+  includesYellowNumberFive: boolean;
+  includesAspartame: boolean;
 }
