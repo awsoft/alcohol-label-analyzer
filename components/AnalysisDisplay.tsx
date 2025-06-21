@@ -279,6 +279,25 @@ const cleanMarkdownText = (text: string): string => {
 const getComplianceStatus = (value: string): 'compliant' | 'non-compliant' | 'partial' | 'unknown' => {
   const lowerValue = value.toLowerCase();
   
+  // Check for explicit status indicators from the new prompt format first
+  if (lowerValue.startsWith("compliant:") || lowerValue.includes("compliant:")) {
+    return 'compliant';
+  }
+  
+  if (lowerValue.startsWith("non-compliant:") || lowerValue.includes("non-compliant:")) {
+    return 'non-compliant';
+  }
+  
+  if (lowerValue.startsWith("potential issue:") || lowerValue.includes("potential issue:")) {
+    return 'partial';
+  }
+  
+  if (lowerValue.startsWith("not required:") || lowerValue.includes("not required:")) {
+    return 'compliant';
+  }
+  
+  // Fallback to legacy detection logic for older analyses
+  
   // Special case: "Not required" items are compliant if they're truly not required
   if ((lowerValue.includes("not required") || lowerValue.includes("not applicable")) && 
       (lowerValue.includes("domestic") || lowerValue.includes("for domestic products"))) {
