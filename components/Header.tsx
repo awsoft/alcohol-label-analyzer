@@ -51,7 +51,7 @@ export const Header: React.FC = () => {
           <div className="flex items-center space-x-2">
             <span className={`text-sm ${isDarkMode ? 'text-slate-400' : 'text-slate-600'}`}>Powered by</span>
             <img 
-              src={isDarkMode ? "/assets/images/aardwolf-logo-light.png" : "/assets/images/aardwolf-logo-dark.png"}
+              src={isDarkMode ? "/assets/images/aardwolf-logo-dark.png" : "/assets/images/aardwolf-logo-light.png"}
               alt="Aardwolf" 
               className="h-8 w-auto"
             />

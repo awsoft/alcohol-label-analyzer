@@ -199,7 +199,7 @@ const App: React.FC = () => {
   const currentError = error;
 
   return (
-    <div className="flex flex-col min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-sky-900 dark:from-slate-900 dark:via-slate-800 dark:to-sky-900 bg-slate-100 dark:bg-slate-900 text-slate-800 dark:text-slate-100 transition-colors duration-300">
+    <div className="flex flex-col min-h-screen bg-gradient-to-br from-slate-50 via-slate-100 to-sky-50 dark:from-slate-900 dark:via-slate-800 dark:to-sky-900 text-slate-800 dark:text-slate-100 transition-colors duration-300">
       <Header />
       <main className="flex-grow container mx-auto px-4 py-8">
         <div className="bg-white dark:bg-slate-800 shadow-2xl rounded-xl p-6 md:p-10 transition-colors duration-300">
