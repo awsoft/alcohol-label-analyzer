@@ -7,7 +7,7 @@ import { AnalysisDisplay } from './components/AnalysisDisplay';
 import { LoadingSpinner } from './components/LoadingSpinner';
 import { analyzeLabelViaservice } from './services/geminiService';
 import { ProductRequirements } from './types';
-import { AlertTriangle, CheckCircle, Info, UploadCloud, Settings, ChevronDown, ChevronRight } from 'lucide-react';
+import { AlertTriangle, CheckCircle, Info, UploadCloud, Settings } from 'lucide-react';
 
 // Gemini supported MIME types for gemini-2.5-flash-preview-04-17
 const GEMINI_SUPPORTED_MIME_TYPES = [
@@ -208,76 +208,56 @@ const App: React.FC = () => {
 
   // Component for selecting product requirements
   const ProductRequirementsSelector: React.FC = () => {
-    const [isExpanded, setIsExpanded] = useState(false);
-
     return (
-      <div className="mb-6 bg-slate-50 dark:bg-slate-700/50 rounded-lg border border-slate-200 dark:border-slate-600">
-        <button
-          onClick={() => setIsExpanded(!isExpanded)}
-          className="w-full p-4 text-left flex items-center justify-between hover:bg-slate-100 dark:hover:bg-slate-600/50 rounded-lg transition-colors"
-        >
-          <div className="flex items-center">
-            <Settings className="h-5 w-5 text-slate-600 dark:text-slate-400 mr-3" />
-            <div>
-              <h3 className="font-semibold text-slate-800 dark:text-slate-200">Product Requirements</h3>
-              <p className="text-sm text-slate-600 dark:text-slate-400">Configure which items apply to your product</p>
-            </div>
+      <div className="mb-6 bg-slate-50 dark:bg-slate-700/50 rounded-lg border border-slate-200 dark:border-slate-600 p-4">
+        <div className="flex items-center mb-4">
+          <Settings className="h-5 w-5 text-slate-600 dark:text-slate-400 mr-3" />
+          <div>
+            <h3 className="font-semibold text-slate-800 dark:text-slate-200">Product Requirements</h3>
+            <p className="text-sm text-slate-600 dark:text-slate-400">Select which items apply to your product</p>
           </div>
-          {isExpanded ? (
-            <ChevronDown className="h-5 w-5 text-slate-400" />
-          ) : (
-            <ChevronRight className="h-5 w-5 text-slate-400" />
-          )}
-        </button>
+        </div>
         
-        {isExpanded && (
-          <div className="border-t border-slate-200 dark:border-slate-600 p-4 space-y-4">
-            <p className="text-sm text-slate-600 dark:text-slate-400 mb-4">
-              Select which requirements apply to your product. Unchecked items will not count toward compliance scoring.
-            </p>
-            
-            <div className="space-y-3">
-              <label className="flex items-center space-x-3 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={productRequirements.includesSulfites}
-                  onChange={(e) => setProductRequirements({ ...productRequirements, includesSulfites: e.target.checked })}
-                  className="w-4 h-4 text-sky-600 bg-white dark:bg-slate-700 border-slate-300 dark:border-slate-500 rounded focus:ring-sky-500 focus:ring-2"
-                />
-                <div>
-                  <span className="text-slate-800 dark:text-slate-200 font-medium">Declaration of Sulfites (Item 8)</span>
-                  <p className="text-sm text-slate-600 dark:text-slate-400">Required for wine containing 10+ ppm sulfur dioxide</p>
-                </div>
-              </label>
-              
-              <label className="flex items-center space-x-3 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={productRequirements.includesAlcoholContent}
-                  onChange={(e) => setProductRequirements({ ...productRequirements, includesAlcoholContent: e.target.checked })}
-                  className="w-4 h-4 text-sky-600 bg-white dark:bg-slate-700 border-slate-300 dark:border-slate-500 rounded focus:ring-sky-500 focus:ring-2"
-                />
-                <div>
-                  <span className="text-slate-800 dark:text-slate-200 font-medium">Alcohol Content/ABV (Item 9)</span>
-                  <p className="text-sm text-slate-600 dark:text-slate-400">Required for certain beverage types and strengths</p>
-                </div>
-              </label>
-              
-              <label className="flex items-center space-x-3 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={productRequirements.includesAllergens}
-                  onChange={(e) => setProductRequirements({ ...productRequirements, includesAllergens: e.target.checked })}
-                  className="w-4 h-4 text-sky-600 bg-white dark:bg-slate-700 border-slate-300 dark:border-slate-500 rounded focus:ring-sky-500 focus:ring-2"
-                />
-                <div>
-                  <span className="text-slate-800 dark:text-slate-200 font-medium">Declaration of Allergens (Item 10)</span>
-                  <p className="text-sm text-slate-600 dark:text-slate-400">Required if allergens are present in the product</p>
-                </div>
-              </label>
+        <div className="space-y-3">
+          <label className="flex items-center space-x-3 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={productRequirements.includesSulfites}
+              onChange={(e) => setProductRequirements({ ...productRequirements, includesSulfites: e.target.checked })}
+              className="w-4 h-4 text-sky-600 bg-white dark:bg-slate-700 border-slate-300 dark:border-slate-500 rounded focus:ring-sky-500 focus:ring-2"
+            />
+            <div>
+              <span className="text-slate-800 dark:text-slate-200 font-medium">Declaration of Sulfites</span>
+              <p className="text-sm text-slate-600 dark:text-slate-400">Required for wine containing 10+ ppm sulfur dioxide</p>
             </div>
-          </div>
-        )}
+          </label>
+          
+          <label className="flex items-center space-x-3 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={productRequirements.includesAlcoholContent}
+              onChange={(e) => setProductRequirements({ ...productRequirements, includesAlcoholContent: e.target.checked })}
+              className="w-4 h-4 text-sky-600 bg-white dark:bg-slate-700 border-slate-300 dark:border-slate-500 rounded focus:ring-sky-500 focus:ring-2"
+            />
+            <div>
+              <span className="text-slate-800 dark:text-slate-200 font-medium">Alcohol Content/ABV</span>
+              <p className="text-sm text-slate-600 dark:text-slate-400">Required for certain beverage types and strengths</p>
+            </div>
+          </label>
+          
+          <label className="flex items-center space-x-3 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={productRequirements.includesAllergens}
+              onChange={(e) => setProductRequirements({ ...productRequirements, includesAllergens: e.target.checked })}
+              className="w-4 h-4 text-sky-600 bg-white dark:bg-slate-700 border-slate-300 dark:border-slate-500 rounded focus:ring-sky-500 focus:ring-2"
+            />
+            <div>
+              <span className="text-slate-800 dark:text-slate-200 font-medium">Declaration of Allergens</span>
+              <p className="text-sm text-slate-600 dark:text-slate-400">Required if allergens are present in the product</p>
+            </div>
+          </label>
+        </div>
       </div>
     );
   };
