@@ -83,11 +83,11 @@ const App: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [apiKeyMissing, setApiKeyMissing] = useState<boolean>(false);
   
-  // Product requirements state
+  // Product requirements state - start with all checkboxes unchecked
   const [productRequirements, setProductRequirements] = useState<ProductRequirements>({
-    includesSulfites: true,
-    includesYellowNumberFive: true,
-    includesAspartame: true,
+    includesSulfites: false,
+    includesYellowNumberFive: false,
+    includesAspartame: false,
   });
 
   useEffect(() => {

@@ -279,26 +279,48 @@ const cleanMarkdownText = (text: string): string => {
 const getComplianceStatus = (value: string): 'compliant' | 'non-compliant' | 'partial' | 'unknown' => {
   const lowerValue = value.toLowerCase();
   
-  // Check for explicit non-compliance first
+  // Check for explicit non-compliance first - be very comprehensive
   if (lowerValue.includes("non-compliant") || lowerValue.includes("missing") || lowerValue.includes("not present") || 
       lowerValue.includes("incorrect") || lowerValue.includes("violation") || lowerValue.includes("absent") ||
-      lowerValue.includes("not found") || lowerValue.includes("lacks") || lowerValue.includes("fails to")) {
+      lowerValue.includes("not found") || lowerValue.includes("lacks") || lowerValue.includes("fails to") ||
+      lowerValue.includes("no declaration") || lowerValue.includes("not visible") || lowerValue.includes("not applicable") ||
+      lowerValue.includes("not required") || lowerValue.includes("not needed") || lowerValue.includes("does not") ||
+      lowerValue.includes("is missing") || lowerValue.includes("are missing") || lowerValue.includes("without") ||
+      lowerValue.includes("needs to include") || lowerValue.includes("must include") || lowerValue.includes("requires") ||
+      lowerValue.includes("should include") || lowerValue.includes("omitted") || lowerValue.includes("excluded")) {
     return 'non-compliant';
   }
   
-  // Check for explicit compliance
-  if (lowerValue.includes("compliant") || lowerValue.includes("present") || lowerValue.includes("correctly") || 
-      lowerValue.includes("appropriate") || lowerValue.includes("properly") || lowerValue.includes("adequate") ||
-      lowerValue.includes("satisfies") || lowerValue.includes("meets") || lowerValue.includes("includes") ||
-      lowerValue.includes("displays") || lowerValue.includes("shows") || lowerValue.includes("contains") ||
-      lowerValue.includes("visible") || lowerValue.includes("clear") || lowerValue.includes("legible")) {
+  // Check for explicit compliance - be more specific about what constitutes compliance
+  if ((lowerValue.includes("compliant") && !lowerValue.includes("non-compliant")) || 
+      lowerValue.includes("present and clearly legible") || lowerValue.includes("clearly legible") ||
+      lowerValue.includes("correctly displayed") || lowerValue.includes("properly displayed") ||
+      lowerValue.includes("appropriate") || lowerValue.includes("adequate") ||
+      lowerValue.includes("satisfies") || lowerValue.includes("meets requirements") || 
+      (lowerValue.includes("visible") && lowerValue.includes("legible")) ||
+      (lowerValue.includes("present") && lowerValue.includes("legible"))) {
     return 'compliant';
   }
   
-  // Check for partial compliance
+  // Check for partial compliance or concerns
   if (lowerValue.includes("unclear") || lowerValue.includes("potential concern") || lowerValue.includes("partially") ||
-      lowerValue.includes("somewhat") || lowerValue.includes("may need") || lowerValue.includes("could be")) {
+      lowerValue.includes("somewhat") || lowerValue.includes("may need") || lowerValue.includes("could be") ||
+      lowerValue.includes("needs review") || lowerValue.includes("should be") || lowerValue.includes("concern") ||
+      lowerValue.includes("issue") || lowerValue.includes("problem")) {
     return 'partial';
+  }
+  
+  // Special handling for detected items that might still be non-compliant
+  if (lowerValue.includes("detected") || lowerValue.includes("found") || lowerValue.includes("identified") ||
+      lowerValue.includes("present") || lowerValue.includes("visible")) {
+    // If it mentions being detected BUT has issues, it's non-compliant
+    if (lowerValue.includes("but") || lowerValue.includes("however") || lowerValue.includes("although") ||
+        lowerValue.includes("needs") || lowerValue.includes("missing") || lowerValue.includes("without") ||
+        lowerValue.includes("lacks") || lowerValue.includes("should") || lowerValue.includes("must")) {
+      return 'non-compliant';
+    }
+    // If simply detected without issues, it's compliant
+    return 'compliant';
   }
   
   return 'unknown';
