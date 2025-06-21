@@ -1,6 +1,5 @@
-
 import React, { useMemo, useState } from 'react';
-import { FileText, CheckCircle, AlertTriangle, Info, ShieldAlert, ShieldCheck, ShieldQuestion, ChevronDown, ChevronRight } from 'lucide-react';
+import { FileText, CheckCircle, AlertTriangle, Info, ShieldAlert, ShieldCheck, ShieldQuestion, ChevronDown, ChevronRight, Settings } from 'lucide-react';
 import { 
     ReportSectionData, 
     ReportItem, 
@@ -20,6 +19,13 @@ const SECTION_TITLE_MAP: Record<string, SectionKey> = {
   "Other TTB Compliance Observations": KNOWN_SECTION_KEYS.OBSERVATIONS,
   "Overall TTB Compliance Summary": KNOWN_SECTION_KEYS.SUMMARY
 };
+
+// Interface for product requirements
+interface ProductRequirements {
+  includesSulfites: boolean;
+  includesAlcoholContent: boolean;
+  includesAllergens: boolean;
+}
 
 const slugify = (text: string) => text.toLowerCase().replace(/\s+/g, '-').replace(/[^\w-]+/g, '');
 
@@ -289,14 +295,32 @@ const getComplianceStatus = (value: string): 'compliant' | 'non-compliant' | 'pa
 };
 
 // Function to calculate compliance score from parsed analysis
-const calculateComplianceScore = (parsedAnalysis: ParsedAnalysis): { compliant: number; total: number; percentage: number } => {
+const calculateComplianceScore = (parsedAnalysis: ParsedAnalysis, productRequirements?: ProductRequirements): { compliant: number; total: number; percentage: number } => {
   let compliantCount = 0;
   let totalCount = 0;
 
   // Check mandatory items
   const mandatorySection = parsedAnalysis.sections.find(section => section.key === KNOWN_SECTION_KEYS.MANDATORY);
   if (mandatorySection && mandatorySection.items) {
-    mandatorySection.items.forEach(item => {
+    mandatorySection.items.forEach((item, index) => {
+      // Items 8, 9, and 10 (0-indexed as 7, 8, 9) are conditional
+      const itemNumber = index + 1;
+      let shouldInclude = true;
+      
+      if (productRequirements) {
+        if (itemNumber === 8 && !productRequirements.includesSulfites) {
+          shouldInclude = false;
+        } else if (itemNumber === 9 && !productRequirements.includesAlcoholContent) {
+          shouldInclude = false;
+        } else if (itemNumber === 10 && !productRequirements.includesAllergens) {
+          shouldInclude = false;
+        }
+      }
+      
+      if (!shouldInclude) {
+        return; // Skip this item in compliance calculation
+      }
+      
       // Look for TTB Compliance Notes in the item details
       const complianceNote = item.details.find(detail => detail.isComplianceNote);
       if (complianceNote) {
@@ -441,6 +465,85 @@ const RenderObservationSubSection: React.FC<{ subSection: ObservationSubSection 
   </div>
 );
 
+// Component for selecting product requirements
+const ProductRequirementsSelector: React.FC<{
+  requirements: ProductRequirements;
+  onRequirementsChange: (requirements: ProductRequirements) => void;
+}> = ({ requirements, onRequirementsChange }) => {
+  const [isExpanded, setIsExpanded] = useState(false);
+
+  return (
+    <div className="mb-6 bg-slate-50 dark:bg-slate-700/50 rounded-lg border border-slate-200 dark:border-slate-600">
+      <button
+        onClick={() => setIsExpanded(!isExpanded)}
+        className="w-full p-4 text-left flex items-center justify-between hover:bg-slate-100 dark:hover:bg-slate-600/50 rounded-lg transition-colors"
+      >
+        <div className="flex items-center">
+          <Settings className="h-5 w-5 text-slate-600 dark:text-slate-400 mr-3" />
+          <div>
+            <h3 className="font-semibold text-slate-800 dark:text-slate-200">Product Requirements</h3>
+            <p className="text-sm text-slate-600 dark:text-slate-400">Configure which items apply to your product</p>
+          </div>
+        </div>
+        {isExpanded ? (
+          <ChevronDown className="h-5 w-5 text-slate-400" />
+        ) : (
+          <ChevronRight className="h-5 w-5 text-slate-400" />
+        )}
+      </button>
+      
+      {isExpanded && (
+        <div className="border-t border-slate-200 dark:border-slate-600 p-4 space-y-4">
+          <p className="text-sm text-slate-600 dark:text-slate-400 mb-4">
+            Select which requirements apply to your product. Unchecked items will not count toward compliance scoring.
+          </p>
+          
+          <div className="space-y-3">
+            <label className="flex items-center space-x-3 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={requirements.includesSulfites}
+                onChange={(e) => onRequirementsChange({ ...requirements, includesSulfites: e.target.checked })}
+                className="w-4 h-4 text-sky-600 bg-white dark:bg-slate-700 border-slate-300 dark:border-slate-500 rounded focus:ring-sky-500 focus:ring-2"
+              />
+              <div>
+                <span className="text-slate-800 dark:text-slate-200 font-medium">Declaration of Sulfites (Item 8)</span>
+                <p className="text-sm text-slate-600 dark:text-slate-400">Required for wine containing 10+ ppm sulfur dioxide</p>
+              </div>
+            </label>
+            
+            <label className="flex items-center space-x-3 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={requirements.includesAlcoholContent}
+                onChange={(e) => onRequirementsChange({ ...requirements, includesAlcoholContent: e.target.checked })}
+                className="w-4 h-4 text-sky-600 bg-white dark:bg-slate-700 border-slate-300 dark:border-slate-500 rounded focus:ring-sky-500 focus:ring-2"
+              />
+              <div>
+                <span className="text-slate-800 dark:text-slate-200 font-medium">Alcohol Content/ABV (Item 9)</span>
+                <p className="text-sm text-slate-600 dark:text-slate-400">Required for certain beverage types and strengths</p>
+              </div>
+            </label>
+            
+            <label className="flex items-center space-x-3 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={requirements.includesAllergens}
+                onChange={(e) => onRequirementsChange({ ...requirements, includesAllergens: e.target.checked })}
+                className="w-4 h-4 text-sky-600 bg-white dark:bg-slate-700 border-slate-300 dark:border-slate-500 rounded focus:ring-sky-500 focus:ring-2"
+              />
+              <div>
+                <span className="text-slate-800 dark:text-slate-200 font-medium">Declaration of Allergens (Item 10)</span>
+                <p className="text-sm text-slate-600 dark:text-slate-400">Required if allergens are present in the product</p>
+              </div>
+            </label>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
 const RenderOverviewBar: React.FC<{ overview: ReportOverviewData | null; complianceScore?: { compliant: number; total: number; percentage: number } }> = ({ overview, complianceScore }) => {
   if (!overview || !overview.statusText) return null;
 
@@ -510,6 +613,13 @@ interface AnalysisDisplayProps {
 }
 
 export const AnalysisDisplay: React.FC<AnalysisDisplayProps> = ({ result }) => {
+  // State for product requirements
+  const [productRequirements, setProductRequirements] = useState<ProductRequirements>({
+    includesSulfites: true,
+    includesAlcoholContent: true,
+    includesAllergens: true,
+  });
+
   const parsedAnalysis = useMemo(() => {
     if (!result) return null; 
     try {
@@ -523,8 +633,8 @@ export const AnalysisDisplay: React.FC<AnalysisDisplayProps> = ({ result }) => {
 
   const complianceScore = useMemo(() => {
     if (!parsedAnalysis) return null;
-    return calculateComplianceScore(parsedAnalysis);
-  }, [parsedAnalysis]);
+    return calculateComplianceScore(parsedAnalysis, productRequirements);
+  }, [parsedAnalysis, productRequirements]);
   
   const hasContentToShow = parsedAnalysis && (parsedAnalysis.overview || parsedAnalysis.sections.length > 0);
 
@@ -552,9 +662,37 @@ export const AnalysisDisplay: React.FC<AnalysisDisplayProps> = ({ result }) => {
     );
   }
 
+  // Separate sections by type for custom ordering
+  const summarySection = parsedAnalysis.sections.find(section => section.key === KNOWN_SECTION_KEYS.SUMMARY);
+  const mandatorySection = parsedAnalysis.sections.find(section => section.key === KNOWN_SECTION_KEYS.MANDATORY);
+  const observationsSection = parsedAnalysis.sections.find(section => section.key === KNOWN_SECTION_KEYS.OBSERVATIONS);
+
   return (
     <div className="bg-white dark:bg-slate-800 shadow-xl rounded-xl p-4 md:p-6 transition-colors duration-300">
       {parsedAnalysis.overview && <RenderOverviewBar overview={parsedAnalysis.overview} complianceScore={complianceScore} />}
+      
+      {/* Product Requirements Selector */}
+      <ProductRequirementsSelector 
+        requirements={productRequirements}
+        onRequirementsChange={setProductRequirements}
+      />
+
+      {/* TTB Compliance Summary - moved to top */}
+      {summarySection && (
+        <section className="mb-8 p-3 md:p-4 bg-slate-50 dark:bg-slate-700/60 rounded-lg shadow-md transition-colors duration-300">
+          <h2 className="text-xl md:text-2xl font-semibold text-sky-600 dark:text-sky-400 border-b-2 border-sky-300 dark:border-sky-600 pb-2 mb-4">
+            {summarySection.title}
+          </h2>
+          
+          {summarySection.freeTextContent && (
+            <div className="space-y-3 text-slate-800 dark:text-slate-200 whitespace-pre-wrap">
+              {summarySection.freeTextContent.map((paragraph, index) => (
+                <div key={index}>{getValueWithComplianceIcon(paragraph)}</div>
+              ))}
+            </div>
+          )}
+        </section>
+      )}
       
       {parsedAnalysis.sections.length > 0 && (
         <>
@@ -563,29 +701,31 @@ export const AnalysisDisplay: React.FC<AnalysisDisplayProps> = ({ result }) => {
             <h3 className="text-2xl md:text-3xl font-bold text-sky-600 dark:text-sky-400">Detailed Compliance Analysis</h3>
           </div>
           
-          {parsedAnalysis.sections.map((section) => (
-            <section key={section.id} className="mb-8 p-3 md:p-4 bg-slate-50 dark:bg-slate-700/60 rounded-lg shadow-md transition-colors duration-300">
+          {/* TTB Mandatory Label Information */}
+          {mandatorySection && (
+            <section className="mb-8 p-3 md:p-4 bg-slate-50 dark:bg-slate-700/60 rounded-lg shadow-md transition-colors duration-300">
               <h2 className="text-xl md:text-2xl font-semibold text-sky-600 dark:text-sky-400 border-b-2 border-sky-300 dark:border-sky-600 pb-2 mb-4">
-                {section.title}
+                {mandatorySection.title}
               </h2>
               
-              {section.items && section.items.map(item => (
+              {mandatorySection.items && mandatorySection.items.map(item => (
                 <RenderReportItem key={item.id} item={item} />
               ))}
+            </section>
+          )}
 
-              {section.observationSubSections && section.observationSubSections.map((subSec, index) => (
+          {/* Other TTB Compliance Observations */}
+          {observationsSection && (
+            <section className="mb-8 p-3 md:p-4 bg-slate-50 dark:bg-slate-700/60 rounded-lg shadow-md transition-colors duration-300">
+              <h2 className="text-xl md:text-2xl font-semibold text-sky-600 dark:text-sky-400 border-b-2 border-sky-300 dark:border-sky-600 pb-2 mb-4">
+                {observationsSection.title}
+              </h2>
+              
+              {observationsSection.observationSubSections && observationsSection.observationSubSections.map((subSec, index) => (
                 <RenderObservationSubSection key={index} subSection={subSec} />
               ))}
-
-              {section.freeTextContent && (
-                <div className="space-y-3 text-slate-800 dark:text-slate-200 whitespace-pre-wrap">
-                  {section.freeTextContent.map((paragraph, index) => (
-                    <div key={index}>{getValueWithComplianceIcon(paragraph)}</div>
-                  ))}
-                </div>
-              )}
             </section>
-          ))}
+          )}
         </>
       )}
     </div>
