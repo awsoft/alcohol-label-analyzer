@@ -256,6 +256,51 @@ const getValueWithComplianceIcon = (value: string): JSX.Element => {
   return <span className="flex items-start">{icon}{value}</span>;
 };
 
+// Helper function to determine compliance status from text
+const getComplianceStatus = (value: string): 'compliant' | 'non-compliant' | 'partial' | 'unknown' => {
+  const lowerValue = value.toLowerCase();
+  
+  if (lowerValue.includes("compliant") && !lowerValue.includes("non-compliant")) {
+    return 'compliant';
+  } else if (lowerValue.includes("non-compliant") || lowerValue.includes("missing") || lowerValue.includes("not present") || lowerValue.includes("incorrect") || lowerValue.includes("violation")) {
+    return 'non-compliant';
+  } else if (lowerValue.includes("unclear") || lowerValue.includes("potential concern") || lowerValue.includes("partially visible")) {
+    return 'partial';
+  }
+  
+  return 'unknown';
+};
+
+// Function to calculate compliance score from parsed analysis
+const calculateComplianceScore = (parsedAnalysis: ParsedAnalysis): { compliant: number; total: number; percentage: number } => {
+  let compliantCount = 0;
+  let totalCount = 0;
+
+  // Check mandatory items
+  const mandatorySection = parsedAnalysis.sections.find(section => section.key === KNOWN_SECTION_KEYS.MANDATORY);
+  if (mandatorySection && mandatorySection.items) {
+    mandatorySection.items.forEach(item => {
+      // Look for TTB Compliance Notes in the item details
+      const complianceNote = item.details.find(detail => detail.isComplianceNote);
+      if (complianceNote) {
+        totalCount++;
+        const status = getComplianceStatus(complianceNote.value);
+        if (status === 'compliant') {
+          compliantCount++;
+        }
+      }
+    });
+  }
+
+  const percentage = totalCount > 0 ? Math.round((compliantCount / totalCount) * 100) : 0;
+  
+  return {
+    compliant: compliantCount,
+    total: totalCount,
+    percentage
+  };
+};
+
 const RenderReportItem: React.FC<{ item: ReportItem }> = ({ item }) => {
   // Extract number prefix from fullItemTitle for display
   const prefixMatch = item.fullItemTitle.match(/^(\d+\.\s+)/);
@@ -292,7 +337,7 @@ const RenderObservationSubSection: React.FC<{ subSection: ObservationSubSection 
   </div>
 );
 
-const RenderOverviewBar: React.FC<{ overview: ReportOverviewData | null }> = ({ overview }) => {
+const RenderOverviewBar: React.FC<{ overview: ReportOverviewData | null; complianceScore?: { compliant: number; total: number; percentage: number } }> = ({ overview, complianceScore }) => {
   if (!overview || !overview.statusText) return null;
 
   let bgColor = 'bg-slate-600';
@@ -325,9 +370,21 @@ const RenderOverviewBar: React.FC<{ overview: ReportOverviewData | null }> = ({ 
 
   return (
     <div className={`p-4 md:p-5 rounded-lg shadow-lg mb-8 ${bgColor} ${textColor}`}>
-      <div className="flex items-center mb-2">
-        <IconComponent className="h-7 w-7 mr-3 flex-shrink-0" />
-        <h2 className="text-xl font-bold">{overview.statusText || 'Compliance Overview'}</h2>
+      <div className="flex items-center justify-between mb-2">
+        <div className="flex items-center">
+          <IconComponent className="h-7 w-7 mr-3 flex-shrink-0" />
+          <h2 className="text-xl font-bold">{overview.statusText || 'Compliance Overview'}</h2>
+        </div>
+        {complianceScore && complianceScore.total > 0 && (
+          <div className="text-right">
+            <div className="text-2xl font-bold">
+              {complianceScore.compliant}/{complianceScore.total}
+            </div>
+            <div className="text-sm opacity-90">
+              {complianceScore.percentage}% Compliant
+            </div>
+          </div>
+        )}
       </div>
       {overview.keyIssues && overview.keyIssues.length > 0 && (
         <div className="ml-10 mt-1">
@@ -359,6 +416,11 @@ export const AnalysisDisplay: React.FC<AnalysisDisplayProps> = ({ result }) => {
       return null; 
     }
   }, [result]);
+
+  const complianceScore = useMemo(() => {
+    if (!parsedAnalysis) return null;
+    return calculateComplianceScore(parsedAnalysis);
+  }, [parsedAnalysis]);
   
   const hasContentToShow = parsedAnalysis && (parsedAnalysis.overview || parsedAnalysis.sections.length > 0);
 
@@ -388,7 +450,7 @@ export const AnalysisDisplay: React.FC<AnalysisDisplayProps> = ({ result }) => {
 
   return (
     <div className="bg-white dark:bg-slate-800 shadow-xl rounded-xl p-4 md:p-6 transition-colors duration-300">
-      {parsedAnalysis.overview && <RenderOverviewBar overview={parsedAnalysis.overview} />}
+      {parsedAnalysis.overview && <RenderOverviewBar overview={parsedAnalysis.overview} complianceScore={complianceScore} />}
       
       {parsedAnalysis.sections.length > 0 && (
         <>
