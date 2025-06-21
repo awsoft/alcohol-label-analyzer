@@ -38,31 +38,28 @@ export const Header: React.FC = () => {
   };
 
   return (
-    <header className={`${isDarkMode ? 'bg-slate-900/80' : 'bg-white/80'} backdrop-blur-md shadow-lg p-4 sticky top-0 z-50 transition-colors duration-300`}>
+    <header className={`${isDarkMode ? 'bg-slate-900/80' : 'bg-white/80'} backdrop-blur-md shadow-lg p-3 md:p-4 sticky top-0 z-50 transition-colors duration-300`}>
       <div className="container mx-auto flex items-center justify-between">
-        <div className="flex items-center space-x-3">
-          <ShieldCheck className={`h-10 w-10 ${isDarkMode ? 'text-sky-500' : 'text-sky-600'}`} />
-          <h1 className={`text-2xl font-bold ${isDarkMode ? 'text-sky-400' : 'text-sky-700'}`}>
+        <div className="flex items-center space-x-2 md:space-x-3 flex-1 min-w-0">
+          <ShieldCheck className={`h-8 w-8 md:h-10 md:w-10 flex-shrink-0 ${isDarkMode ? 'text-sky-500' : 'text-sky-600'}`} />
+          <h1 className={`text-lg md:text-2xl font-bold ${isDarkMode ? 'text-sky-400' : 'text-sky-700'} truncate`}>
             Alcohol Label Analyzer
           </h1>
         </div>
         
-        <div className="flex items-center space-x-4">
-          <div className="flex items-center space-x-2">
-            <span className={`text-sm ${isDarkMode ? 'text-slate-400' : 'text-slate-600'}`}>Powered by</span>
-            <a 
-              href="https://AardwolfIT.com" 
-              target="_blank" 
-              rel="noopener noreferrer"
-              className="hover:opacity-80 transition-opacity duration-200"
-            >
-              <img 
-                src={isDarkMode ? "/assets/images/aardwolf-logo-dark.png" : "/assets/images/aardwolf-logo-light.png"}
-                alt="Aardwolf" 
-                className="h-8 w-auto"
-              />
-            </a>
-          </div>
+        <div className="flex items-center space-x-2 md:space-x-4 flex-shrink-0">
+          <a 
+            href="https://AardwolfIT.com" 
+            target="_blank" 
+            rel="noopener noreferrer"
+            className="hover:opacity-80 transition-opacity duration-200"
+          >
+            <img 
+              src={isDarkMode ? "/assets/images/aardwolf-logo-dark.png" : "/assets/images/aardwolf-logo-light.png"}
+              alt="Aardwolf" 
+              className="h-6 w-auto md:h-8"
+            />
+          </a>
           
           {/* Settings Menu */}
           <div className="relative">

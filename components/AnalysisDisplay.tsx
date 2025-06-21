@@ -462,17 +462,17 @@ const RenderReportItem: React.FC<{ item: ReportItem }> = ({ item }) => {
     <div className="mb-3 bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-600 transition-all duration-300 hover:shadow-md">
       <button
         onClick={() => setIsExpanded(!isExpanded)}
-        className="w-full p-4 text-left transition-colors duration-200 hover:bg-slate-50 dark:hover:bg-slate-700/50 rounded-lg"
+        className="w-full p-3 md:p-4 text-left transition-colors duration-200 hover:bg-slate-50 dark:hover:bg-slate-700/50 rounded-lg"
       >
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-3 flex-1">
-            <StatusIcon className={`h-5 w-5 flex-shrink-0 ${statusColor}`} />
+        <div className="flex items-start justify-between">
+          <div className="flex items-start space-x-2 md:space-x-3 flex-1 min-w-0">
+            <StatusIcon className={`h-4 w-4 md:h-5 md:w-5 flex-shrink-0 mt-0.5 ${statusColor}`} />
             <div className="flex-1 min-w-0">
-              <div className="flex items-center justify-between">
-                <span className="font-medium text-slate-800 dark:text-slate-200 truncate">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                <span className="font-medium text-slate-800 dark:text-slate-200 text-sm md:text-base leading-tight">
                   {displayPrefix}{cleanTitle}
                 </span>
-                <span className={`ml-3 px-2 py-1 text-xs font-medium rounded-full flex-shrink-0 ${
+                <span className={`px-2 py-1 text-xs font-medium rounded-full flex-shrink-0 self-start sm:self-center ${
                   complianceStatus === 'compliant' ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300' :
                   complianceStatus === 'non-compliant' ? 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300' :
                   complianceStatus === 'partial' ? 'bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-300' :
@@ -482,20 +482,22 @@ const RenderReportItem: React.FC<{ item: ReportItem }> = ({ item }) => {
                 </span>
               </div>
               {complianceNote && (
-                <div className="text-sm text-slate-600 dark:text-slate-400 mt-1 truncate">
-                  {cleanMarkdownText(complianceNote.value).length > 80 
-                    ? `${cleanMarkdownText(complianceNote.value).substring(0, 80)}...` 
-                    : cleanMarkdownText(complianceNote.value)
-                  }
+                <div className="text-xs md:text-sm text-slate-600 dark:text-slate-400 mt-2 leading-relaxed">
+                  <div className="break-words">
+                    {cleanMarkdownText(complianceNote.value).length > 60 
+                      ? `${cleanMarkdownText(complianceNote.value).substring(0, 60)}...` 
+                      : cleanMarkdownText(complianceNote.value)
+                    }
+                  </div>
                 </div>
               )}
             </div>
           </div>
-          <div className="flex items-center ml-3">
+          <div className="flex items-center ml-2 flex-shrink-0">
             {isExpanded ? (
-              <ChevronDown className="h-5 w-5 text-slate-400" />
+              <ChevronDown className="h-4 w-4 md:h-5 md:w-5 text-slate-400" />
             ) : (
-              <ChevronRight className="h-5 w-5 text-slate-400" />
+              <ChevronRight className="h-4 w-4 md:h-5 md:w-5 text-slate-400" />
             )}
           </div>
         </div>
@@ -503,17 +505,17 @@ const RenderReportItem: React.FC<{ item: ReportItem }> = ({ item }) => {
       
       {isExpanded && (
         <div className="border-t border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-700/30">
-          <div className="p-4 space-y-4">
+          <div className="p-3 md:p-4 space-y-3 md:space-y-4">
         {item.details.map((detail, index) => (
-              <div key={index} className="space-y-2">
-                <dt className="font-medium text-slate-700 dark:text-slate-300 text-sm">
+              <div key={index} className="space-y-1 md:space-y-2">
+                <dt className="font-medium text-slate-700 dark:text-slate-300 text-xs md:text-sm">
                   {cleanMarkdownText(detail.label)}:
                 </dt>
-                <dd className={`text-slate-800 dark:text-slate-200 ${
+                <dd className={`text-slate-800 dark:text-slate-200 text-sm md:text-base leading-relaxed ${
                   detail.isComplianceNote 
-                    ? 'bg-white dark:bg-slate-600/30 p-3 rounded-md border-l-4 border-sky-500' 
-                    : 'pl-3'
-                }`}>
+                    ? 'bg-white dark:bg-slate-600/30 p-2 md:p-3 rounded-md border-l-4 border-sky-500' 
+                    : 'pl-2 md:pl-3'
+                } break-words`}>
                   {detail.isComplianceNote 
                     ? getValueWithComplianceIcon(cleanMarkdownText(detail.value))
                     : cleanMarkdownText(detail.value)
@@ -615,29 +617,29 @@ const RenderOverviewBar: React.FC<{
   }
 
   return (
-    <div className={`p-4 md:p-5 rounded-lg shadow-lg mb-8 ${bgColor} ${textColor}`}>
-      <div className="flex items-center justify-between mb-2">
-        <div className="flex items-center">
-        <IconComponent className="h-7 w-7 mr-3 flex-shrink-0" />
-          <h2 className="text-xl font-bold">{displayStatus || overview.statusText || 'Compliance Overview'}</h2>
+    <div className={`p-3 md:p-5 rounded-lg shadow-lg mb-6 md:mb-8 ${bgColor} ${textColor}`}>
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-2">
+        <div className="flex items-center min-w-0">
+        <IconComponent className="h-6 w-6 md:h-7 md:w-7 mr-2 md:mr-3 flex-shrink-0" />
+          <h2 className="text-lg md:text-xl font-bold leading-tight">{displayStatus || overview.statusText || 'Compliance Overview'}</h2>
         </div>
         {complianceScore && complianceScore.total > 0 && (
-          <div className="text-right">
-            <div className="text-2xl font-bold">
+          <div className="text-left sm:text-right flex-shrink-0">
+            <div className="text-xl md:text-2xl font-bold">
               {complianceScore.compliant}/{complianceScore.total}
             </div>
-            <div className="text-sm opacity-90">
+            <div className="text-xs md:text-sm opacity-90">
               {complianceScore.percentage}% Compliant
             </div>
           </div>
         )}
       </div>
       {keyIssues && keyIssues.length > 0 && (
-        <div className="ml-10 mt-1">
-          <p className="text-sm font-semibold mb-1">Key Issues Identified:</p>
-          <ul className="list-disc list-inside text-sm space-y-0.5">
+        <div className="ml-8 md:ml-10 mt-2">
+          <p className="text-xs md:text-sm font-semibold mb-1">Key Issues Identified:</p>
+          <ul className="list-disc list-inside text-xs md:text-sm space-y-0.5 leading-relaxed">
             {keyIssues.map((issue, index) => (
-              <li key={index}>{issue}</li>
+              <li key={index} className="break-words">{issue}</li>
             ))}
           </ul>
         </div>
