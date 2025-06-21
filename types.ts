@@ -58,3 +58,10 @@ export interface ParsedAnalysis {
   overview: ReportOverviewData | null;
   sections: ReportSectionData[];
 }
+
+// Interface for product requirements
+export interface ProductRequirements {
+  includesSulfites: boolean;
+  includesAlcoholContent: boolean;
+  includesAllergens: boolean;
+}

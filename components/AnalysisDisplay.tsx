@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { FileText, CheckCircle, AlertTriangle, Info, ShieldAlert, ShieldCheck, ShieldQuestion, ChevronDown, ChevronRight, Settings } from 'lucide-react';
+import { FileText, CheckCircle, AlertTriangle, Info, ShieldAlert, ShieldCheck, ShieldQuestion, ChevronDown, ChevronRight } from 'lucide-react';
 import { 
     ReportSectionData, 
     ReportItem, 
@@ -9,7 +9,8 @@ import {
     SectionKey,
     ReportOverviewData,
     ParsedAnalysis,
-    ComplianceStatus
+    ComplianceStatus,
+    ProductRequirements
 } from '../types';
 
 // Constants for parsing
@@ -20,12 +21,7 @@ const SECTION_TITLE_MAP: Record<string, SectionKey> = {
   "Overall TTB Compliance Summary": KNOWN_SECTION_KEYS.SUMMARY
 };
 
-// Interface for product requirements
-interface ProductRequirements {
-  includesSulfites: boolean;
-  includesAlcoholContent: boolean;
-  includesAllergens: boolean;
-}
+
 
 const slugify = (text: string) => text.toLowerCase().replace(/\s+/g, '-').replace(/[^\w-]+/g, '');
 
@@ -465,84 +461,7 @@ const RenderObservationSubSection: React.FC<{ subSection: ObservationSubSection 
   </div>
 );
 
-// Component for selecting product requirements
-const ProductRequirementsSelector: React.FC<{
-  requirements: ProductRequirements;
-  onRequirementsChange: (requirements: ProductRequirements) => void;
-}> = ({ requirements, onRequirementsChange }) => {
-  const [isExpanded, setIsExpanded] = useState(false);
 
-  return (
-    <div className="mb-6 bg-slate-50 dark:bg-slate-700/50 rounded-lg border border-slate-200 dark:border-slate-600">
-      <button
-        onClick={() => setIsExpanded(!isExpanded)}
-        className="w-full p-4 text-left flex items-center justify-between hover:bg-slate-100 dark:hover:bg-slate-600/50 rounded-lg transition-colors"
-      >
-        <div className="flex items-center">
-          <Settings className="h-5 w-5 text-slate-600 dark:text-slate-400 mr-3" />
-          <div>
-            <h3 className="font-semibold text-slate-800 dark:text-slate-200">Product Requirements</h3>
-            <p className="text-sm text-slate-600 dark:text-slate-400">Configure which items apply to your product</p>
-          </div>
-        </div>
-        {isExpanded ? (
-          <ChevronDown className="h-5 w-5 text-slate-400" />
-        ) : (
-          <ChevronRight className="h-5 w-5 text-slate-400" />
-        )}
-      </button>
-      
-      {isExpanded && (
-        <div className="border-t border-slate-200 dark:border-slate-600 p-4 space-y-4">
-          <p className="text-sm text-slate-600 dark:text-slate-400 mb-4">
-            Select which requirements apply to your product. Unchecked items will not count toward compliance scoring.
-          </p>
-          
-          <div className="space-y-3">
-            <label className="flex items-center space-x-3 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={requirements.includesSulfites}
-                onChange={(e) => onRequirementsChange({ ...requirements, includesSulfites: e.target.checked })}
-                className="w-4 h-4 text-sky-600 bg-white dark:bg-slate-700 border-slate-300 dark:border-slate-500 rounded focus:ring-sky-500 focus:ring-2"
-              />
-              <div>
-                <span className="text-slate-800 dark:text-slate-200 font-medium">Declaration of Sulfites (Item 8)</span>
-                <p className="text-sm text-slate-600 dark:text-slate-400">Required for wine containing 10+ ppm sulfur dioxide</p>
-              </div>
-            </label>
-            
-            <label className="flex items-center space-x-3 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={requirements.includesAlcoholContent}
-                onChange={(e) => onRequirementsChange({ ...requirements, includesAlcoholContent: e.target.checked })}
-                className="w-4 h-4 text-sky-600 bg-white dark:bg-slate-700 border-slate-300 dark:border-slate-500 rounded focus:ring-sky-500 focus:ring-2"
-              />
-              <div>
-                <span className="text-slate-800 dark:text-slate-200 font-medium">Alcohol Content/ABV (Item 9)</span>
-                <p className="text-sm text-slate-600 dark:text-slate-400">Required for certain beverage types and strengths</p>
-              </div>
-            </label>
-            
-            <label className="flex items-center space-x-3 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={requirements.includesAllergens}
-                onChange={(e) => onRequirementsChange({ ...requirements, includesAllergens: e.target.checked })}
-                className="w-4 h-4 text-sky-600 bg-white dark:bg-slate-700 border-slate-300 dark:border-slate-500 rounded focus:ring-sky-500 focus:ring-2"
-              />
-              <div>
-                <span className="text-slate-800 dark:text-slate-200 font-medium">Declaration of Allergens (Item 10)</span>
-                <p className="text-sm text-slate-600 dark:text-slate-400">Required if allergens are present in the product</p>
-              </div>
-            </label>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-};
 
 const RenderOverviewBar: React.FC<{ overview: ReportOverviewData | null; complianceScore?: { compliant: number; total: number; percentage: number } }> = ({ overview, complianceScore }) => {
   if (!overview || !overview.statusText) return null;
@@ -610,15 +529,10 @@ const RenderOverviewBar: React.FC<{ overview: ReportOverviewData | null; complia
 
 interface AnalysisDisplayProps {
   result: string;
+  productRequirements: ProductRequirements;
 }
 
-export const AnalysisDisplay: React.FC<AnalysisDisplayProps> = ({ result }) => {
-  // State for product requirements
-  const [productRequirements, setProductRequirements] = useState<ProductRequirements>({
-    includesSulfites: true,
-    includesAlcoholContent: true,
-    includesAllergens: true,
-  });
+export const AnalysisDisplay: React.FC<AnalysisDisplayProps> = ({ result, productRequirements }) => {
 
   const parsedAnalysis = useMemo(() => {
     if (!result) return null; 
@@ -671,12 +585,6 @@ export const AnalysisDisplay: React.FC<AnalysisDisplayProps> = ({ result }) => {
     <div className="bg-white dark:bg-slate-800 shadow-xl rounded-xl p-4 md:p-6 transition-colors duration-300">
       {parsedAnalysis.overview && <RenderOverviewBar overview={parsedAnalysis.overview} complianceScore={complianceScore} />}
       
-      {/* Product Requirements Selector */}
-      <ProductRequirementsSelector 
-        requirements={productRequirements}
-        onRequirementsChange={setProductRequirements}
-      />
-
       {/* TTB Compliance Summary - moved to top */}
       {summarySection && (
         <section className="mb-8 p-3 md:p-4 bg-slate-50 dark:bg-slate-700/60 rounded-lg shadow-md transition-colors duration-300">
