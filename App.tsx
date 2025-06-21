@@ -199,11 +199,11 @@ const App: React.FC = () => {
   const currentError = error;
 
   return (
-    <div className="flex flex-col min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-sky-900 text-slate-100">
+    <div className="flex flex-col min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-sky-900 dark:from-slate-900 dark:via-slate-800 dark:to-sky-900 bg-slate-100 dark:bg-slate-900 text-slate-800 dark:text-slate-100 transition-colors duration-300">
       <Header />
       <main className="flex-grow container mx-auto px-4 py-8">
-        <div className="bg-slate-800 shadow-2xl rounded-xl p-6 md:p-10">
-          <h2 className="text-3xl font-bold mb-8 text-sky-400 text-center">Analyze Your Alcohol Label</h2>
+        <div className="bg-white dark:bg-slate-800 shadow-2xl rounded-xl p-6 md:p-10 transition-colors duration-300">
+          <h2 className="text-3xl font-bold mb-8 text-sky-600 dark:text-sky-400 text-center transition-colors duration-300">Analyze Your Alcohol Label</h2>
           
           {apiKeyMissing && !currentError?.includes("API Key") && (
             <div className="mb-6 p-4 bg-red-700 border border-red-500 rounded-lg flex items-center space-x-3">
