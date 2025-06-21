@@ -1,6 +1,6 @@
 
-import React, { useMemo } from 'react';
-import { FileText, CheckCircle, AlertTriangle, Info, ShieldAlert, ShieldCheck, ShieldQuestion } from 'lucide-react';
+import React, { useMemo, useState } from 'react';
+import { FileText, CheckCircle, AlertTriangle, Info, ShieldAlert, ShieldCheck, ShieldQuestion, ChevronDown, ChevronRight } from 'lucide-react';
 import { 
     ReportSectionData, 
     ReportItem, 
@@ -302,26 +302,86 @@ const calculateComplianceScore = (parsedAnalysis: ParsedAnalysis): { compliant: 
 };
 
 const RenderReportItem: React.FC<{ item: ReportItem }> = ({ item }) => {
+  const [isExpanded, setIsExpanded] = useState(false);
+  
   // Extract number prefix from fullItemTitle for display
   const prefixMatch = item.fullItemTitle.match(/^(\d+\.\s+)/);
   const displayPrefix = prefixMatch ? prefixMatch[0] : ""; // Use group 0 for the full prefix match e.g. "1.  "
 
+  // Get compliance status for the item to show in the header
+  const complianceNote = item.details.find(detail => detail.isComplianceNote);
+  const complianceStatus = complianceNote ? getComplianceStatus(complianceNote.value) : 'unknown';
+  
+  // Determine header styling based on compliance status
+  let headerBgColor = 'bg-slate-100 dark:bg-slate-700';
+  let headerTextColor = 'text-slate-700 dark:text-slate-300';
+  let StatusIcon = Info;
+  
+  switch (complianceStatus) {
+    case 'compliant':
+      headerBgColor = 'bg-green-50 dark:bg-green-900/20 border-l-4 border-green-500';
+      headerTextColor = 'text-green-800 dark:text-green-200';
+      StatusIcon = CheckCircle;
+      break;
+    case 'non-compliant':
+      headerBgColor = 'bg-red-50 dark:bg-red-900/20 border-l-4 border-red-500';
+      headerTextColor = 'text-red-800 dark:text-red-200';
+      StatusIcon = AlertTriangle;
+      break;
+    case 'partial':
+      headerBgColor = 'bg-yellow-50 dark:bg-yellow-900/20 border-l-4 border-yellow-500';
+      headerTextColor = 'text-yellow-800 dark:text-yellow-200';
+      StatusIcon = Info;
+      break;
+  }
+
   return (
-    <div className="mb-6 bg-slate-100 dark:bg-slate-700 p-4 rounded-lg shadow transition-colors duration-300">
-      <h4 className="text-md font-semibold text-sky-600 dark:text-sky-300 mb-3">
-        {displayPrefix}
-        <span className="font-semibold">{item.title}</span>: {/* item.title is now the clean title */}
-      </h4>
-      <dl className="space-y-2">
-        {item.details.map((detail, index) => (
-          <div key={index} className="grid grid-cols-1 md:grid-cols-12 gap-x-2 gap-y-1 py-2 border-b border-slate-300 dark:border-slate-600/50 last:border-b-0">
-            <dt className="font-medium text-slate-700 dark:text-slate-300 md:col-span-4 lg:col-span-3">{detail.label}:</dt>
-            <dd className={`md:col-span-8 lg:col-span-9 text-slate-800 dark:text-slate-200 whitespace-pre-wrap ${detail.isComplianceNote ? 'bg-slate-200 dark:bg-slate-600/30 p-2 rounded-md' : 'pt-0.5'}`}>
-              {detail.isComplianceNote ? getValueWithComplianceIcon(detail.value) : detail.value}
-            </dd>
+    <div className="mb-3 bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-600 transition-colors duration-300">
+      <button
+        onClick={() => setIsExpanded(!isExpanded)}
+        className={`w-full p-4 text-left transition-colors duration-200 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700/50 ${headerBgColor}`}
+      >
+        <div className="flex items-center justify-between">
+          <div className={`flex items-center space-x-3 ${headerTextColor}`}>
+            <StatusIcon className="h-5 w-5 flex-shrink-0" />
+            <div className="flex-1">
+              <span className="font-medium">
+                {displayPrefix}{item.title}
+              </span>
+              {complianceNote && (
+                <div className="text-sm mt-1 opacity-90">
+                  {complianceNote.value.length > 100 
+                    ? `${complianceNote.value.substring(0, 100)}...` 
+                    : complianceNote.value
+                  }
+                </div>
+              )}
+            </div>
           </div>
-        ))}
-      </dl>
+          <div className="flex items-center space-x-2">
+            {isExpanded ? (
+              <ChevronDown className="h-5 w-5 text-slate-500" />
+            ) : (
+              <ChevronRight className="h-5 w-5 text-slate-500" />
+            )}
+          </div>
+        </div>
+      </button>
+      
+      {isExpanded && (
+        <div className="px-4 pb-4 border-t border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-700/30">
+          <dl className="space-y-3 mt-4">
+            {item.details.map((detail, index) => (
+              <div key={index} className="grid grid-cols-1 md:grid-cols-12 gap-x-3 gap-y-1 py-2">
+                <dt className="font-medium text-slate-700 dark:text-slate-300 md:col-span-4 lg:col-span-3">{detail.label}:</dt>
+                <dd className={`md:col-span-8 lg:col-span-9 text-slate-800 dark:text-slate-200 whitespace-pre-wrap ${detail.isComplianceNote ? 'bg-slate-200 dark:bg-slate-600/30 p-3 rounded-md' : 'pt-0.5'}`}>
+                  {detail.isComplianceNote ? getValueWithComplianceIcon(detail.value) : detail.value}
+                </dd>
+              </div>
+            ))}
+          </dl>
+        </div>
+      )}
     </div>
   );
 };
