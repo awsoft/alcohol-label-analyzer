@@ -10,10 +10,11 @@
     "install-types": "npm install @types/react @types/react-dom --save-dev"
   },
   "dependencies": {
-    "react-dom": "^19.1.0",
-    "react": "^19.1.0",
+    "@google/genai": "^1.6.0",
+    "@vercel/analytics": "^1.5.0",
     "lucide-react": "^0.522.0",
-    "@google/genai": "^1.6.0"
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0"
   },
   "devDependencies": {
     "@types/node": "^22.14.0",
