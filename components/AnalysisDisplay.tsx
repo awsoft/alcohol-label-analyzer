@@ -262,16 +262,16 @@ const RenderReportItem: React.FC<{ item: ReportItem }> = ({ item }) => {
   const displayPrefix = prefixMatch ? prefixMatch[0] : ""; // Use group 0 for the full prefix match e.g. "1.  "
 
   return (
-    <div className="mb-6 bg-slate-700 p-4 rounded-lg shadow">
-      <h4 className="text-md font-semibold text-sky-300 mb-3">
+    <div className="mb-6 bg-slate-100 dark:bg-slate-700 p-4 rounded-lg shadow transition-colors duration-300">
+      <h4 className="text-md font-semibold text-sky-600 dark:text-sky-300 mb-3">
         {displayPrefix}
         <span className="font-semibold">{item.title}</span>: {/* item.title is now the clean title */}
       </h4>
       <dl className="space-y-2">
         {item.details.map((detail, index) => (
-          <div key={index} className="grid grid-cols-1 md:grid-cols-12 gap-x-2 gap-y-1 py-2 border-b border-slate-600/50 last:border-b-0">
-            <dt className="font-medium text-slate-300 md:col-span-4 lg:col-span-3">{detail.label}:</dt>
-            <dd className={`md:col-span-8 lg:col-span-9 text-slate-200 whitespace-pre-wrap ${detail.isComplianceNote ? 'bg-slate-600/30 p-2 rounded-md' : 'pt-0.5'}`}>
+          <div key={index} className="grid grid-cols-1 md:grid-cols-12 gap-x-2 gap-y-1 py-2 border-b border-slate-300 dark:border-slate-600/50 last:border-b-0">
+            <dt className="font-medium text-slate-700 dark:text-slate-300 md:col-span-4 lg:col-span-3">{detail.label}:</dt>
+            <dd className={`md:col-span-8 lg:col-span-9 text-slate-800 dark:text-slate-200 whitespace-pre-wrap ${detail.isComplianceNote ? 'bg-slate-200 dark:bg-slate-600/30 p-2 rounded-md' : 'pt-0.5'}`}>
               {detail.isComplianceNote ? getValueWithComplianceIcon(detail.value) : detail.value}
             </dd>
           </div>
@@ -283,8 +283,8 @@ const RenderReportItem: React.FC<{ item: ReportItem }> = ({ item }) => {
 
 const RenderObservationSubSection: React.FC<{ subSection: ObservationSubSection }> = ({ subSection }) => (
   <div className="mb-4">
-    <h5 className="text-base font-semibold text-sky-300 mb-1">{subSection.title}:</h5>
-    <div className="ml-2 space-y-1 text-slate-300">
+    <h5 className="text-base font-semibold text-sky-600 dark:text-sky-300 mb-1">{subSection.title}:</h5>
+    <div className="ml-2 space-y-1 text-slate-700 dark:text-slate-300">
       {subSection.points.map((point, i) => (
         <div key={i} className="whitespace-pre-wrap py-0.5">{getValueWithComplianceIcon(point)}</div>
       ))}
@@ -370,16 +370,16 @@ export const AnalysisDisplay: React.FC<AnalysisDisplayProps> = ({ result }) => {
         );
     }
     return (
-      <div className="bg-slate-700/80 shadow-lg rounded-xl p-6 text-slate-300">
-        <div className="flex items-center mb-4 border-b border-slate-600 pb-3">
-          <FileText className="h-7 w-7 text-sky-400 mr-3" />
-          <h3 className="text-2xl font-semibold text-sky-400">Analysis Report</h3>
+      <div className="bg-slate-100 dark:bg-slate-700/80 shadow-lg rounded-xl p-6 text-slate-700 dark:text-slate-300 transition-colors duration-300">
+        <div className="flex items-center mb-4 border-b border-slate-300 dark:border-slate-600 pb-3">
+          <FileText className="h-7 w-7 text-sky-600 dark:text-sky-400 mr-3" />
+          <h3 className="text-2xl font-semibold text-sky-600 dark:text-sky-400">Analysis Report</h3>
         </div>
         <p>No analysis data to display or the response could not be parsed. The AI might not have provided a response in the expected format, or an error occurred. Please check the browser console for more details if the issue persists.</p>
         {result && result.trim().length > 0 && ( // Show raw only if there was actual input
-            <details className="mt-4 text-xs bg-slate-600 p-2 rounded">
-                <summary className="cursor-pointer font-medium text-slate-300">View Raw AI Response (for debugging)</summary>
-                <pre className="mt-2 whitespace-pre-wrap text-slate-400">{result}</pre>
+            <details className="mt-4 text-xs bg-slate-200 dark:bg-slate-600 p-2 rounded">
+                <summary className="cursor-pointer font-medium text-slate-700 dark:text-slate-300">View Raw AI Response (for debugging)</summary>
+                <pre className="mt-2 whitespace-pre-wrap text-slate-600 dark:text-slate-400">{result}</pre>
             </details>
         )}
       </div>
@@ -387,19 +387,19 @@ export const AnalysisDisplay: React.FC<AnalysisDisplayProps> = ({ result }) => {
   }
 
   return (
-    <div className="bg-slate-800 shadow-xl rounded-xl p-4 md:p-6">
+    <div className="bg-white dark:bg-slate-800 shadow-xl rounded-xl p-4 md:p-6 transition-colors duration-300">
       {parsedAnalysis.overview && <RenderOverviewBar overview={parsedAnalysis.overview} />}
       
       {parsedAnalysis.sections.length > 0 && (
         <>
-          <div className="flex items-center mb-6 border-b border-slate-600 pb-3 mt-4">
-            <FileText className="h-8 w-8 text-sky-400 mr-3 flex-shrink-0" />
-            <h3 className="text-2xl md:text-3xl font-bold text-sky-400">Detailed Compliance Analysis</h3>
+          <div className="flex items-center mb-6 border-b border-slate-300 dark:border-slate-600 pb-3 mt-4">
+            <FileText className="h-8 w-8 text-sky-600 dark:text-sky-400 mr-3 flex-shrink-0" />
+            <h3 className="text-2xl md:text-3xl font-bold text-sky-600 dark:text-sky-400">Detailed Compliance Analysis</h3>
           </div>
           
           {parsedAnalysis.sections.map((section) => (
-            <section key={section.id} className="mb-8 p-3 md:p-4 bg-slate-700/60 rounded-lg shadow-md">
-              <h2 className="text-xl md:text-2xl font-semibold text-sky-400 border-b-2 border-sky-600 pb-2 mb-4">
+            <section key={section.id} className="mb-8 p-3 md:p-4 bg-slate-50 dark:bg-slate-700/60 rounded-lg shadow-md transition-colors duration-300">
+              <h2 className="text-xl md:text-2xl font-semibold text-sky-600 dark:text-sky-400 border-b-2 border-sky-300 dark:border-sky-600 pb-2 mb-4">
                 {section.title}
               </h2>
               
@@ -412,7 +412,7 @@ export const AnalysisDisplay: React.FC<AnalysisDisplayProps> = ({ result }) => {
               ))}
 
               {section.freeTextContent && (
-                <div className="space-y-3 text-slate-200 whitespace-pre-wrap">
+                <div className="space-y-3 text-slate-800 dark:text-slate-200 whitespace-pre-wrap">
                   {section.freeTextContent.map((paragraph, index) => (
                     <div key={index}>{getValueWithComplianceIcon(paragraph)}</div>
                   ))}
