@@ -42,8 +42,8 @@ export const Header: React.FC = () => {
       <div className="container mx-auto flex items-center justify-between">
         <div className="flex items-center space-x-2 md:space-x-3 flex-1 min-w-0">
           <ShieldCheck className={`h-8 w-8 md:h-10 md:w-10 flex-shrink-0 ${isDarkMode ? 'text-sky-500' : 'text-sky-600'}`} />
-          <h1 className={`text-lg md:text-2xl font-bold ${isDarkMode ? 'text-sky-400' : 'text-sky-700'} truncate`}>
-            Alcohol Label Analyzer
+          <h1 className={`text-lg md:text-2xl font-bold ${isDarkMode ? 'text-sky-400' : 'text-sky-700'} leading-tight`}>
+            <span className="line-clamp-2">Alcohol Label Analyzer</span>
           </h1>
         </div>
         
