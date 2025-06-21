@@ -281,19 +281,19 @@ const getComplianceStatus = (value: string): 'compliant' | 'non-compliant' | 'pa
   
   // Check for explicit status indicators from the new prompt format first
   // Look for the exact format: "STATUS:" at the beginning or after whitespace
-  if (lowerValue.match(/(?:^|\s)compliant:/)) {
+  if (lowerValue.includes('compliant:') && !lowerValue.includes('non-compliant:')) {
     return 'compliant';
   }
   
-  if (lowerValue.match(/(?:^|\s)non-compliant:/)) {
+  if (lowerValue.includes('non-compliant:')) {
     return 'non-compliant';
   }
   
-  if (lowerValue.match(/(?:^|\s)potential issue:/)) {
+  if (lowerValue.includes('potential issue:')) {
     return 'partial';
   }
   
-  if (lowerValue.match(/(?:^|\s)not required:/)) {
+  if (lowerValue.includes('not required:')) {
     return 'compliant';
   }
   
@@ -383,11 +383,11 @@ const calculateComplianceScore = (parsedAnalysis: ParsedAnalysis, productRequire
         // Check if this item should be excluded based on product requirements
         let shouldExclude = false;
         if (productRequirements) {
-          if (itemNumber === 8 && !productRequirements.includesSulfites && lowerValue.match(/(?:^|\s)not required:/)) {
+          if (itemNumber === 8 && !productRequirements.includesSulfites && lowerValue.includes('not required:')) {
             shouldExclude = true;
-          } else if (itemNumber === 9 && !productRequirements.includesYellowNumberFive && lowerValue.match(/(?:^|\s)not required:/)) {
+          } else if (itemNumber === 9 && !productRequirements.includesYellowNumberFive && lowerValue.includes('not required:')) {
             shouldExclude = true;
-          } else if (itemNumber === 10 && !productRequirements.includesAspartame && lowerValue.match(/(?:^|\s)not required:/)) {
+          } else if (itemNumber === 10 && !productRequirements.includesAspartame && lowerValue.includes('not required:')) {
             shouldExclude = true;
           }
         }
@@ -543,31 +543,48 @@ const RenderObservationSubSection: React.FC<{ subSection: ObservationSubSection 
 const RenderOverviewBar: React.FC<{ overview: ReportOverviewData | null; complianceScore?: { compliant: number; total: number; percentage: number } }> = ({ overview, complianceScore }) => {
   if (!overview || !overview.statusText) return null;
 
+  // Calculate actual status based on compliance score if available
+  let actualStatus = overview.status;
+  if (complianceScore && complianceScore.total > 0) {
+    if (complianceScore.percentage === 100) {
+      actualStatus = 'Compliant';
+    } else if (complianceScore.percentage >= 80) {
+      actualStatus = 'Partially Compliant';
+    } else {
+      actualStatus = 'Non-Compliant';
+    }
+  }
+
   let bgColor = 'bg-slate-600';
   let textColor = 'text-slate-100';
   let IconComponent: React.ElementType = Info;
+  let displayStatus = '';
 
-  switch (overview.status) {
+  switch (actualStatus) {
     case 'Compliant':
       bgColor = 'bg-green-700';
       textColor = 'text-green-100';
       IconComponent = ShieldCheck;
+      displayStatus = 'Compliant';
       break;
     case 'Partially Compliant':
       bgColor = 'bg-yellow-600';
       textColor = 'text-yellow-100';
       IconComponent = ShieldAlert;
+      displayStatus = 'Partially Compliant - Minor Issues';
       break;
     case 'Non-Compliant':
       bgColor = 'bg-red-700';
       textColor = 'text-red-100';
       IconComponent = AlertTriangle;
+      displayStatus = 'Non-Compliant - Issues Found';
       break;
     case 'Unknown':
     default:
       bgColor = 'bg-sky-700';
       textColor = 'text-sky-100';
       IconComponent = ShieldQuestion;
+      displayStatus = 'Status Unknown';
       break;
   }
 
@@ -576,7 +593,7 @@ const RenderOverviewBar: React.FC<{ overview: ReportOverviewData | null; complia
       <div className="flex items-center justify-between mb-2">
         <div className="flex items-center">
           <IconComponent className="h-7 w-7 mr-3 flex-shrink-0" />
-          <h2 className="text-xl font-bold">{overview.statusText || 'Compliance Overview'}</h2>
+          <h2 className="text-xl font-bold">{displayStatus || overview.statusText || 'Compliance Overview'}</h2>
         </div>
         {complianceScore && complianceScore.total > 0 && (
           <div className="text-right">
