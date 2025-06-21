@@ -82,6 +82,7 @@ const App: React.FC = () => {
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [apiKeyMissing, setApiKeyMissing] = useState<boolean>(false);
+  const [hasAnalyzed, setHasAnalyzed] = useState<boolean>(false);
   
   // Product requirements state - start with all checkboxes unchecked
   const [productRequirements, setProductRequirements] = useState<ProductRequirements>({
@@ -101,6 +102,7 @@ const App: React.FC = () => {
     if (file) {
       setError(null);
       setAnalysisResult(null);
+      setHasAnalyzed(false);
       setUploadedFile(file); 
 
       if (file.size > MAX_FILE_SIZE_BYTES) {
@@ -185,6 +187,7 @@ const App: React.FC = () => {
     try {
       const result = await analyzeLabelViaservice(imageBase64, imageMimeType, productRequirements);
       setAnalysisResult(result);
+      setHasAnalyzed(true);
     } catch (e: any) {
       console.error("Analysis failed:", e);
       let errorMessage = "An error occurred during analysis.";
@@ -214,17 +217,18 @@ const App: React.FC = () => {
           <Settings className="h-5 w-5 text-slate-600 dark:text-slate-400 mr-3" />
           <div>
             <h3 className="font-semibold text-slate-800 dark:text-slate-200">Product Requirements</h3>
-            <p className="text-sm text-slate-600 dark:text-slate-400">Do these apply to your product? (Items 8, 9, 10)</p>
+            <p className="text-sm text-slate-600 dark:text-slate-400">Do these apply to your product?</p>
           </div>
         </div>
         
         <div className="space-y-3">
-          <label className="flex items-center space-x-3 cursor-pointer">
+          <label className={`flex items-center space-x-3 ${isLoading || hasAnalyzed ? 'cursor-not-allowed opacity-60' : 'cursor-pointer'}`}>
             <input
               type="checkbox"
               checked={productRequirements.includesSulfites}
               onChange={(e) => setProductRequirements({ ...productRequirements, includesSulfites: e.target.checked })}
-              className="w-4 h-4 text-sky-600 bg-white dark:bg-slate-700 border-slate-300 dark:border-slate-500 rounded focus:ring-sky-500 focus:ring-2"
+              disabled={isLoading || hasAnalyzed}
+              className="w-4 h-4 text-sky-600 bg-white dark:bg-slate-700 border-slate-300 dark:border-slate-500 rounded focus:ring-sky-500 focus:ring-2 disabled:opacity-50 disabled:cursor-not-allowed"
             />
             <div>
               <span className="text-slate-800 dark:text-slate-200 font-medium">Declaration of Sulfites</span>
@@ -232,12 +236,13 @@ const App: React.FC = () => {
             </div>
           </label>
           
-          <label className="flex items-center space-x-3 cursor-pointer">
+          <label className={`flex items-center space-x-3 ${isLoading || hasAnalyzed ? 'cursor-not-allowed opacity-60' : 'cursor-pointer'}`}>
             <input
               type="checkbox"
               checked={productRequirements.includesYellowNumberFive}
               onChange={(e) => setProductRequirements({ ...productRequirements, includesYellowNumberFive: e.target.checked })}
-              className="w-4 h-4 text-sky-600 bg-white dark:bg-slate-700 border-slate-300 dark:border-slate-500 rounded focus:ring-sky-500 focus:ring-2"
+              disabled={isLoading || hasAnalyzed}
+              className="w-4 h-4 text-sky-600 bg-white dark:bg-slate-700 border-slate-300 dark:border-slate-500 rounded focus:ring-sky-500 focus:ring-2 disabled:opacity-50 disabled:cursor-not-allowed"
             />
             <div>
               <span className="text-slate-800 dark:text-slate-200 font-medium">Declaration of Yellow Number Five</span>
@@ -245,12 +250,13 @@ const App: React.FC = () => {
             </div>
           </label>
           
-          <label className="flex items-center space-x-3 cursor-pointer">
+          <label className={`flex items-center space-x-3 ${isLoading || hasAnalyzed ? 'cursor-not-allowed opacity-60' : 'cursor-pointer'}`}>
             <input
               type="checkbox"
               checked={productRequirements.includesAspartame}
               onChange={(e) => setProductRequirements({ ...productRequirements, includesAspartame: e.target.checked })}
-              className="w-4 h-4 text-sky-600 bg-white dark:bg-slate-700 border-slate-300 dark:border-slate-500 rounded focus:ring-sky-500 focus:ring-2"
+              disabled={isLoading || hasAnalyzed}
+              className="w-4 h-4 text-sky-600 bg-white dark:bg-slate-700 border-slate-300 dark:border-slate-500 rounded focus:ring-sky-500 focus:ring-2 disabled:opacity-50 disabled:cursor-not-allowed"
             />
             <div>
               <span className="text-slate-800 dark:text-slate-200 font-medium">Declaration of Aspartame</span>
@@ -291,7 +297,7 @@ const App: React.FC = () => {
               
               <button
                 onClick={handleAnalyze}
-                disabled={!uploadedFile || !imageBase64 || isLoading || apiKeyMissing}
+                disabled={!uploadedFile || !imageBase64 || isLoading || apiKeyMissing || hasAnalyzed}
                 className="w-full bg-sky-600 hover:bg-sky-500 disabled:bg-slate-400 dark:disabled:bg-slate-600 text-white font-semibold py-3 px-6 rounded-lg shadow-md transition-colors duration-200 flex items-center justify-center space-x-2 text-lg disabled:cursor-not-allowed"
               >
                 {isLoading && (!analysisResult && !currentError) ? <LoadingSpinner /> : <CheckCircle className="h-5 w-5" />}
