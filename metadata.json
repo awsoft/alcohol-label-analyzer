@@ -1,0 +1,5 @@
+{
+  "name": "Alcohol Label Compliance Analyzer",
+  "description": "An AI-powered tool to analyze alcohol labels for regulatory compliance using image recognition and generative AI. Upload an image of an alcohol label to get an analysis of its adherence to TTB guidelines.",
+  "requestFramePermissions": []
+}
