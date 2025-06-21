@@ -183,7 +183,7 @@ const App: React.FC = () => {
     setAnalysisResult(null);
 
     try {
-      const result = await analyzeLabelViaservice(imageBase64, imageMimeType);
+      const result = await analyzeLabelViaservice(imageBase64, imageMimeType, productRequirements);
       setAnalysisResult(result);
     } catch (e: any) {
       console.error("Analysis failed:", e);
