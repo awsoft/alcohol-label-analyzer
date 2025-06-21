@@ -248,12 +248,13 @@ const getValueWithComplianceIcon = (value: string): JSX.Element => {
   const lowerValue = cleanValue.toLowerCase();
   let icon = null;
 
-  if (lowerValue.includes("compliant") || lowerValue.includes("appears correct") || lowerValue.includes("present and correct") || lowerValue.includes("verified")) {
-    icon = <CheckCircle className="inline h-4 w-4 mr-1 text-green-400 flex-shrink-0" />;
-  } else if (lowerValue.includes("non-compliant") || lowerValue.includes("missing") || lowerValue.includes("issue") || lowerValue.includes("not present") || lowerValue.includes("incorrect") || lowerValue.includes("violation")) {
+  // Check for explicit status indicators first (order matters!)
+  if (lowerValue.includes("non-compliant:") || lowerValue.includes("missing") || lowerValue.includes("not present") || lowerValue.includes("incorrect") || lowerValue.includes("violation")) {
     icon = <AlertTriangle className="inline h-4 w-4 mr-1 text-red-400 flex-shrink-0" />;
-  } else if (lowerValue.includes("unclear") || lowerValue.includes("potential concern") || lowerValue.includes("recommend") || lowerValue.includes("partially visible") || lowerValue.includes("confirm")) {
-     icon = <Info className="inline h-4 w-4 mr-1 text-yellow-400 flex-shrink-0" />;
+  } else if (lowerValue.includes("potential issue:") || lowerValue.includes("unclear") || lowerValue.includes("potential concern") || lowerValue.includes("recommend") || lowerValue.includes("partially visible") || lowerValue.includes("confirm")) {
+    icon = <Info className="inline h-4 w-4 mr-1 text-yellow-400 flex-shrink-0" />;
+  } else if (lowerValue.includes("compliant:") || lowerValue.includes("not required:") || lowerValue.includes("appears correct") || lowerValue.includes("present and correct") || lowerValue.includes("verified")) {
+    icon = <CheckCircle className="inline h-4 w-4 mr-1 text-green-400 flex-shrink-0" />;
   }
   
   return <span className="flex items-start">{icon}{cleanValue}</span>;
@@ -503,7 +504,7 @@ const RenderReportItem: React.FC<{ item: ReportItem }> = ({ item }) => {
       {isExpanded && (
         <div className="border-t border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-700/30">
           <div className="p-4 space-y-4">
-            {item.details.map((detail, index) => (
+        {item.details.map((detail, index) => (
               <div key={index} className="space-y-2">
                 <dt className="font-medium text-slate-700 dark:text-slate-300 text-sm">
                   {cleanMarkdownText(detail.label)}:
@@ -517,9 +518,9 @@ const RenderReportItem: React.FC<{ item: ReportItem }> = ({ item }) => {
                     ? getValueWithComplianceIcon(cleanMarkdownText(detail.value))
                     : cleanMarkdownText(detail.value)
                   }
-                </dd>
-              </div>
-            ))}
+            </dd>
+          </div>
+        ))}
           </div>
         </div>
       )}
@@ -540,7 +541,11 @@ const RenderObservationSubSection: React.FC<{ subSection: ObservationSubSection 
 
 
 
-const RenderOverviewBar: React.FC<{ overview: ReportOverviewData | null; complianceScore?: { compliant: number; total: number; percentage: number } }> = ({ overview, complianceScore }) => {
+const RenderOverviewBar: React.FC<{ 
+  overview: ReportOverviewData | null; 
+  complianceScore?: { compliant: number; total: number; percentage: number };
+  parsedAnalysis?: ParsedAnalysis | null;
+}> = ({ overview, complianceScore, parsedAnalysis }) => {
   if (!overview || !overview.statusText) return null;
 
   // Calculate actual status based on compliance score if available
@@ -552,6 +557,27 @@ const RenderOverviewBar: React.FC<{ overview: ReportOverviewData | null; complia
       actualStatus = 'Partially Compliant';
     } else {
       actualStatus = 'Non-Compliant';
+    }
+  }
+
+  // Generate key issues from non-compliant items if not provided by AI
+  let keyIssues = overview.keyIssues || [];
+  if (keyIssues.length === 0 && parsedAnalysis) {
+    const mandatorySection = parsedAnalysis.sections.find(section => section.key === KNOWN_SECTION_KEYS.MANDATORY);
+    if (mandatorySection && mandatorySection.items) {
+      const nonCompliantItems: string[] = [];
+      mandatorySection.items.forEach((item, index) => {
+        const complianceNote = item.details.find(detail => detail.isComplianceNote);
+        if (complianceNote) {
+          const status = getComplianceStatus(complianceNote.value);
+          if (status === 'non-compliant') {
+            const itemNumber = index + 1;
+            const cleanTitle = cleanMarkdownText(item.title);
+            nonCompliantItems.push(`Missing required ${cleanTitle.toLowerCase()} (Item ${itemNumber})`);
+          }
+        }
+      });
+      keyIssues = nonCompliantItems;
     }
   }
 
@@ -592,7 +618,7 @@ const RenderOverviewBar: React.FC<{ overview: ReportOverviewData | null; complia
     <div className={`p-4 md:p-5 rounded-lg shadow-lg mb-8 ${bgColor} ${textColor}`}>
       <div className="flex items-center justify-between mb-2">
         <div className="flex items-center">
-          <IconComponent className="h-7 w-7 mr-3 flex-shrink-0" />
+        <IconComponent className="h-7 w-7 mr-3 flex-shrink-0" />
           <h2 className="text-xl font-bold">{displayStatus || overview.statusText || 'Compliance Overview'}</h2>
         </div>
         {complianceScore && complianceScore.total > 0 && (
@@ -606,11 +632,11 @@ const RenderOverviewBar: React.FC<{ overview: ReportOverviewData | null; complia
           </div>
         )}
       </div>
-      {overview.keyIssues && overview.keyIssues.length > 0 && (
+      {keyIssues && keyIssues.length > 0 && (
         <div className="ml-10 mt-1">
           <p className="text-sm font-semibold mb-1">Key Issues Identified:</p>
           <ul className="list-disc list-inside text-sm space-y-0.5">
-            {overview.keyIssues.map((issue, index) => (
+            {keyIssues.map((issue, index) => (
               <li key={index}>{issue}</li>
             ))}
           </ul>
@@ -677,7 +703,7 @@ export const AnalysisDisplay: React.FC<AnalysisDisplayProps> = ({ result, produc
 
   return (
     <div className="bg-white dark:bg-slate-800 shadow-xl rounded-xl p-4 md:p-6 transition-colors duration-300">
-      {parsedAnalysis.overview && <RenderOverviewBar overview={parsedAnalysis.overview} complianceScore={complianceScore} />}
+      {parsedAnalysis.overview && <RenderOverviewBar overview={parsedAnalysis.overview} complianceScore={complianceScore} parsedAnalysis={parsedAnalysis} />}
       
       {/* TTB Compliance Summary - moved to top */}
       {summarySection && (
