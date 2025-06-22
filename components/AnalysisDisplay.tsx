@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { FileText, CheckCircle, AlertTriangle, Info, ShieldAlert, ShieldCheck, ShieldQuestion, ChevronDown, ChevronRight } from 'lucide-react';
+import { FileText, CheckCircle, AlertTriangle, Info, ShieldAlert, ShieldCheck, ShieldQuestion, ChevronDown, ChevronRight, Download } from 'lucide-react';
 import { 
     ReportSectionData, 
     ReportItem, 
@@ -12,6 +12,7 @@ import {
     ComplianceStatus,
     ProductRequirements
 } from '../types';
+import { generatePDFReport } from '../services/pdfService';
 
 // Constants for parsing
 const SECTION_TITLE_MAP: Record<string, SectionKey> = {
@@ -243,7 +244,7 @@ function parseAnalysisResult(resultText: string): ParsedAnalysis {
   return parsed;
 }
 
-const getValueWithComplianceIcon = (value: string): JSX.Element => {
+const getValueWithComplianceIcon = (value: string): React.JSX.Element => {
   const cleanValue = cleanMarkdownText(value);
   const lowerValue = cleanValue.toLowerCase();
   let icon = null;
@@ -705,7 +706,7 @@ export const AnalysisDisplay: React.FC<AnalysisDisplayProps> = ({ result, produc
 
   return (
     <div className="bg-white dark:bg-slate-800 shadow-xl rounded-xl p-4 md:p-6 transition-colors duration-300">
-      {parsedAnalysis.overview && <RenderOverviewBar overview={parsedAnalysis.overview} complianceScore={complianceScore} parsedAnalysis={parsedAnalysis} />}
+      {parsedAnalysis.overview && <RenderOverviewBar overview={parsedAnalysis.overview} complianceScore={complianceScore || undefined} parsedAnalysis={parsedAnalysis} />}
       
       {/* TTB Compliance Summary - moved to top */}
       {summarySection && (
@@ -757,6 +758,19 @@ export const AnalysisDisplay: React.FC<AnalysisDisplayProps> = ({ result, produc
             </section>
           )}
         </>
+      )}
+      
+      {/* Download Report Button */}
+      {hasContentToShow && (
+        <div className="mt-6 flex justify-center">
+          <button
+            onClick={() => generatePDFReport(parsedAnalysis, productRequirements, complianceScore || undefined)}
+            className="inline-flex items-center px-6 py-3 bg-sky-600 hover:bg-sky-700 dark:bg-sky-500 dark:hover:bg-sky-600 text-white font-semibold rounded-lg shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105"
+          >
+            <Download className="h-5 w-5 mr-2" />
+            Download Report (PDF)
+          </button>
+        </div>
       )}
     </div>
   );
