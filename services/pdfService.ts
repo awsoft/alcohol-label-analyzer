@@ -46,20 +46,27 @@ export const generatePDFReport = async (
     if (!text || text.trim() === '') return y;
     
     doc.setFontSize(fontSize);
-    // Be more conservative with width to prevent cutoff
-    const safeWidth = Math.min(maxWidth, pageWidth - x - margin);
+    // Use very conservative width calculation to prevent any cutoff
+    const rightMargin = Math.max(margin, 25); // Ensure at least 25pt right margin
+    const safeWidth = Math.min(maxWidth, pageWidth - x - rightMargin);
+    
+    if (safeWidth <= 0) {
+      console.warn('Invalid text width calculated, using fallback');
+      return y + 10;
+    }
+    
     const lines = doc.splitTextToSize(text, safeWidth);
     
     // Check if we need page breaks for long content
-    const lineHeight = fontSize * 0.5;
+    const lineHeight = fontSize * 0.6; // Better line spacing
     const totalHeight = lines.length * lineHeight;
-    if (y + totalHeight > doc.internal.pageSize.height - margin - 10) {
+    if (y + totalHeight > doc.internal.pageSize.height - margin - 15) {
       doc.addPage();
-      y = margin;
+      y = margin + 20; // Start with some top padding on new page
     }
     
     doc.text(lines, x, y);
-    return y + totalHeight + 4;
+    return y + totalHeight + 5;
   };
 
   // Helper function to check if we need a new page
@@ -71,47 +78,40 @@ export const generatePDFReport = async (
     return yPosition;
   };
 
-  // Add header with logo
-  doc.setFillColor(0, 102, 153); // Aardwolf blue
-  doc.rect(0, 0, pageWidth, 40, 'F');
-  
-  // Add logo
+  // Add clean header with logo centered at top
   try {
     const logoData = await loadImageAsBase64('/assets/images/aardwolf-logo-light.png');
     
-    // Calculate proportional dimensions - target height of 24px
-    const targetHeight = 24;
+    // Calculate proportional dimensions - target height of 35px for prominence
+    const targetHeight = 35;
     const aspectRatio = logoData.width / logoData.height;
     const logoWidth = targetHeight * aspectRatio;
     const logoHeight = targetHeight;
     
-    // Add logo to PDF (properly scaled to maintain aspect ratio)
-    doc.addImage(logoData.dataURL, 'PNG', margin, 8, logoWidth, logoHeight);
+    // Center logo horizontally
+    const logoX = (pageWidth - logoWidth) / 2;
     
-    // Add text next to logo with proper spacing
-    const textStartX = margin + logoWidth + 8;
-    doc.setTextColor(255, 255, 255);
-    doc.setFontSize(20);
-    doc.setFont('helvetica', 'bold');
-    doc.text('AARDWOLF', textStartX, 25);
+    // Add logo to PDF (centered, no background)
+    doc.addImage(logoData.dataURL, 'PNG', logoX, 15, logoWidth, logoHeight);
     
-    doc.setFontSize(16);
-    doc.setFont('helvetica', 'normal');
-    doc.text('Alcohol Label Compliance Analyzer', textStartX, 35);
+    yPosition = 60;
   } catch (error) {
     console.warn('Failed to load logo for PDF, using text fallback:', error);
     // Fallback to text if logo fails to load
-    doc.setTextColor(255, 255, 255);
-    doc.setFontSize(20);
+    doc.setTextColor(0, 0, 0);
+    doc.setFontSize(24);
     doc.setFont('helvetica', 'bold');
-    doc.text('AARDWOLF', margin, 25);
+    doc.text('AARDWOLF', pageWidth / 2, 30, { align: 'center' });
     
-    doc.setFontSize(16);
-    doc.setFont('helvetica', 'normal');
-    doc.text('Alcohol Label Compliance Analyzer', margin, 35);
+    yPosition = 45;
   }
 
-  yPosition = 55;
+  // Add company subtitle
+  doc.setTextColor(100, 100, 100);
+  doc.setFontSize(12);
+  doc.setFont('helvetica', 'normal');
+  doc.text('Alcohol Label Compliance Analyzer', pageWidth / 2, yPosition, { align: 'center' });
+  yPosition += 20;
   doc.setTextColor(0, 0, 0);
 
   // Add report title and timestamp
@@ -177,7 +177,7 @@ export const generatePDFReport = async (
       doc.setFontSize(10);
       parsedAnalysis.overview.keyIssues.forEach((issue) => {
         yPosition = checkPageBreak(15);
-        yPosition = addWrappedText('• ' + issue, margin + 5, yPosition, pageWidth - margin * 3, 10);
+        yPosition = addWrappedText('• ' + issue, margin + 5, yPosition, pageWidth - 70, 10);
       });
       yPosition += 10;
     }
@@ -199,7 +199,7 @@ export const generatePDFReport = async (
       // Item title
       doc.setFontSize(11);
       doc.setFont('helvetica', 'bold');
-      yPosition = addWrappedText(`${index + 1}. ${item.title}`, margin, yPosition, pageWidth - margin * 3, 11);
+      yPosition = addWrappedText(`${index + 1}. ${item.title}`, margin, yPosition, pageWidth - 60, 11);
       yPosition += 5;
 
       // Item details
@@ -232,12 +232,12 @@ export const generatePDFReport = async (
           cleanValue = statusIndicator + cleanValue;
         }
 
-        // Format label and value with proper wrapping - use more conservative widths
+        // Format label and value with proper wrapping - use very conservative widths
         doc.setFont('helvetica', 'bold');
-        yPosition = addWrappedText(`${detail.label}:`, margin + 10, yPosition, pageWidth - margin * 3, 9);
+        yPosition = addWrappedText(`${detail.label}:`, margin + 10, yPosition, pageWidth - 80, 9);
         doc.setFont('helvetica', 'normal');
-        yPosition = addWrappedText(cleanValue, margin + 15, yPosition, pageWidth - margin * 3 - 5, 9);
-        yPosition += 2;
+        yPosition = addWrappedText(cleanValue, margin + 15, yPosition, pageWidth - 85, 9);
+        yPosition += 3;
       });
       
       yPosition += 8;
@@ -259,7 +259,7 @@ export const generatePDFReport = async (
       
       doc.setFontSize(12);
       doc.setFont('helvetica', 'bold');
-      yPosition = addWrappedText(subSection.title, margin, yPosition, pageWidth - margin * 3, 12);
+      yPosition = addWrappedText(subSection.title, margin, yPosition, pageWidth - 60, 12);
       yPosition += 5;
 
       doc.setFont('helvetica', 'normal');
@@ -273,7 +273,7 @@ export const generatePDFReport = async (
           .replace(/✅|❌|⚠️|ℹ️/g, '')
           .replace(/\s+/g, ' ')
           .trim();
-        yPosition = addWrappedText('• ' + cleanPoint, margin + 5, yPosition, pageWidth - margin * 3, 10);
+        yPosition = addWrappedText('• ' + cleanPoint, margin + 5, yPosition, pageWidth - 70, 10);
       });
       
       yPosition += 10;
@@ -301,7 +301,7 @@ export const generatePDFReport = async (
         .replace(/✅|❌|⚠️|ℹ️/g, '')
         .replace(/\s+/g, ' ')
         .trim();
-      yPosition = addWrappedText(cleanContent, margin, yPosition, pageWidth - margin * 3, 10);
+      yPosition = addWrappedText(cleanContent, margin, yPosition, pageWidth - 60, 10);
       yPosition += 5;
     });
   }
