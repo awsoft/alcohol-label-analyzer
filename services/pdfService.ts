@@ -41,7 +41,7 @@ export const generatePDFReport = async (
   const margin = 20;
   let yPosition = margin;
 
-  // Helper function to add text with wrapping - DEAD SIMPLE approach with fixed safe width
+  // Helper function to add text with wrapping - MANUAL CHARACTER-BASED wrapping (bypass jsPDF splitTextToSize)
   const addWrappedText = (text: string, x: number, y: number, maxWidth: number, fontSize: number = 10, isBold: boolean = false): number => {
     if (!text || text.trim() === '') return y;
     
@@ -52,12 +52,47 @@ export const generatePDFReport = async (
     doc.setFontSize(fontSize);
     doc.setFont('helvetica', isBold ? 'bold' : 'normal');
     
-    // IGNORE all calculations - use a fixed width that DEFINITELY works
-    // 400 points is about 67% of page width - absolutely safe
-    const SAFE_WIDTH = 400;
+    // COMPLETELY BYPASS jsPDF's splitTextToSize - do manual character-based wrapping
+    // Use conservative character limits based on font size
+    let maxCharsPerLine: number;
+    if (fontSize <= 9) {
+      maxCharsPerLine = 80;
+    } else if (fontSize <= 11) {
+      maxCharsPerLine = 70;
+    } else {
+      maxCharsPerLine = 60;
+    }
     
-    // Use jsPDF's built-in text splitting with the fixed safe width
-    const lines = doc.splitTextToSize(cleanText, SAFE_WIDTH);
+    // If bold, reduce character count further
+    if (isBold) {
+      maxCharsPerLine = Math.floor(maxCharsPerLine * 0.85);
+    }
+    
+    // Split text into lines manually by character count
+    const words = cleanText.split(' ');
+    const lines: string[] = [];
+    let currentLine = '';
+    
+    for (const word of words) {
+      const testLine = currentLine ? `${currentLine} ${word}` : word;
+      
+      if (testLine.length <= maxCharsPerLine) {
+        currentLine = testLine;
+      } else {
+        if (currentLine) {
+          lines.push(currentLine);
+          currentLine = word;
+        } else {
+          // Word is too long, break it
+          lines.push(word.substring(0, maxCharsPerLine));
+          currentLine = word.substring(maxCharsPerLine);
+        }
+      }
+    }
+    
+    if (currentLine) {
+      lines.push(currentLine);
+    }
     
     let currentY = y;
     const lineHeight = fontSize * 1.2;
@@ -69,7 +104,7 @@ export const generatePDFReport = async (
       currentY = 40;
     }
     
-    // Add each line individually for better control
+    // Add each line
     for (let i = 0; i < lines.length; i++) {
       if (currentY > pageHeight - 50) {
         doc.addPage();
