@@ -8,8 +8,8 @@ declare module 'jspdf' {
   }
 }
 
-// Helper function to load image as base64
-const loadImageAsBase64 = (src: string): Promise<string> => {
+// Helper function to load image as base64 with dimensions
+const loadImageAsBase64 = (src: string): Promise<{dataURL: string, width: number, height: number}> => {
   return new Promise((resolve, reject) => {
     const img = new Image();
     img.crossOrigin = 'anonymous';
@@ -20,7 +20,11 @@ const loadImageAsBase64 = (src: string): Promise<string> => {
       canvas.height = img.height;
       ctx?.drawImage(img, 0, 0);
       const dataURL = canvas.toDataURL('image/png');
-      resolve(dataURL);
+      resolve({
+        dataURL,
+        width: img.width,
+        height: img.height
+      });
     };
     img.onerror = reject;
     img.src = src;
@@ -42,19 +46,20 @@ export const generatePDFReport = async (
     if (!text || text.trim() === '') return y;
     
     doc.setFontSize(fontSize);
-    // Ensure proper max width calculation
-    const effectiveMaxWidth = Math.min(maxWidth, pageWidth - x - 10);
-    const lines = doc.splitTextToSize(text, effectiveMaxWidth);
+    // Be more conservative with width to prevent cutoff
+    const safeWidth = Math.min(maxWidth, pageWidth - x - margin);
+    const lines = doc.splitTextToSize(text, safeWidth);
     
     // Check if we need page breaks for long content
-    const totalHeight = lines.length * fontSize * 0.6;
-    if (y + totalHeight > doc.internal.pageSize.height - margin) {
+    const lineHeight = fontSize * 0.5;
+    const totalHeight = lines.length * lineHeight;
+    if (y + totalHeight > doc.internal.pageSize.height - margin - 10) {
       doc.addPage();
       y = margin;
     }
     
     doc.text(lines, x, y);
-    return y + (lines.length * fontSize * 0.6) + 3;
+    return y + totalHeight + 4;
   };
 
   // Helper function to check if we need a new page
@@ -72,19 +77,27 @@ export const generatePDFReport = async (
   
   // Add logo
   try {
-    const logoBase64 = await loadImageAsBase64('/assets/images/aardwolf-logo-light.png');
-    // Add logo to PDF (scaled appropriately)
-    doc.addImage(logoBase64, 'PNG', margin, 8, 25, 25); // x, y, width, height
+    const logoData = await loadImageAsBase64('/assets/images/aardwolf-logo-light.png');
     
-    // Add text next to logo
+    // Calculate proportional dimensions - target height of 24px
+    const targetHeight = 24;
+    const aspectRatio = logoData.width / logoData.height;
+    const logoWidth = targetHeight * aspectRatio;
+    const logoHeight = targetHeight;
+    
+    // Add logo to PDF (properly scaled to maintain aspect ratio)
+    doc.addImage(logoData.dataURL, 'PNG', margin, 8, logoWidth, logoHeight);
+    
+    // Add text next to logo with proper spacing
+    const textStartX = margin + logoWidth + 8;
     doc.setTextColor(255, 255, 255);
     doc.setFontSize(20);
     doc.setFont('helvetica', 'bold');
-    doc.text('AARDWOLF', margin + 30, 25);
+    doc.text('AARDWOLF', textStartX, 25);
     
     doc.setFontSize(16);
     doc.setFont('helvetica', 'normal');
-    doc.text('Alcohol Label Compliance Analyzer', margin + 30, 35);
+    doc.text('Alcohol Label Compliance Analyzer', textStartX, 35);
   } catch (error) {
     console.warn('Failed to load logo for PDF, using text fallback:', error);
     // Fallback to text if logo fails to load
@@ -164,7 +177,7 @@ export const generatePDFReport = async (
       doc.setFontSize(10);
       parsedAnalysis.overview.keyIssues.forEach((issue) => {
         yPosition = checkPageBreak(15);
-        yPosition = addWrappedText('• ' + issue, margin + 5, yPosition, pageWidth - margin * 2 - 5, 10);
+        yPosition = addWrappedText('• ' + issue, margin + 5, yPosition, pageWidth - margin * 3, 10);
       });
       yPosition += 10;
     }
@@ -186,7 +199,7 @@ export const generatePDFReport = async (
       // Item title
       doc.setFontSize(11);
       doc.setFont('helvetica', 'bold');
-      yPosition = addWrappedText(`${index + 1}. ${item.title}`, margin, yPosition, pageWidth - margin * 2, 11);
+      yPosition = addWrappedText(`${index + 1}. ${item.title}`, margin, yPosition, pageWidth - margin * 3, 11);
       yPosition += 5;
 
       // Item details
@@ -219,12 +232,12 @@ export const generatePDFReport = async (
           cleanValue = statusIndicator + cleanValue;
         }
 
-        // Format label and value with proper wrapping
+        // Format label and value with proper wrapping - use more conservative widths
         doc.setFont('helvetica', 'bold');
-        yPosition = addWrappedText(`${detail.label}:`, margin + 10, yPosition, pageWidth - margin * 2 - 10, 9);
+        yPosition = addWrappedText(`${detail.label}:`, margin + 10, yPosition, pageWidth - margin * 3, 9);
         doc.setFont('helvetica', 'normal');
-        yPosition = addWrappedText(cleanValue, margin + 15, yPosition, pageWidth - margin * 2 - 15, 9);
-        yPosition += 3;
+        yPosition = addWrappedText(cleanValue, margin + 15, yPosition, pageWidth - margin * 3 - 5, 9);
+        yPosition += 2;
       });
       
       yPosition += 8;
@@ -246,7 +259,7 @@ export const generatePDFReport = async (
       
       doc.setFontSize(12);
       doc.setFont('helvetica', 'bold');
-      yPosition = addWrappedText(subSection.title, margin, yPosition, pageWidth - margin * 2, 12);
+      yPosition = addWrappedText(subSection.title, margin, yPosition, pageWidth - margin * 3, 12);
       yPosition += 5;
 
       doc.setFont('helvetica', 'normal');
@@ -260,7 +273,7 @@ export const generatePDFReport = async (
           .replace(/✅|❌|⚠️|ℹ️/g, '')
           .replace(/\s+/g, ' ')
           .trim();
-        yPosition = addWrappedText('• ' + cleanPoint, margin + 5, yPosition, pageWidth - margin * 2 - 5, 10);
+        yPosition = addWrappedText('• ' + cleanPoint, margin + 5, yPosition, pageWidth - margin * 3, 10);
       });
       
       yPosition += 10;
@@ -288,7 +301,7 @@ export const generatePDFReport = async (
         .replace(/✅|❌|⚠️|ℹ️/g, '')
         .replace(/\s+/g, ' ')
         .trim();
-      yPosition = addWrappedText(cleanContent, margin, yPosition, pageWidth - margin * 2, 10);
+      yPosition = addWrappedText(cleanContent, margin, yPosition, pageWidth - margin * 3, 10);
       yPosition += 5;
     });
   }
