@@ -41,7 +41,7 @@ export const generatePDFReport = async (
   const margin = 20;
   let yPosition = margin;
 
-  // Helper function to add text with wrapping - completely rewritten for better reliability
+  // Helper function to add text with wrapping - using manual word wrapping for better control
   const addWrappedText = (text: string, x: number, y: number, maxWidth: number, fontSize: number = 10, isBold: boolean = false): number => {
     if (!text || text.trim() === '') return y;
     
@@ -52,41 +52,74 @@ export const generatePDFReport = async (
     doc.setFontSize(fontSize);
     doc.setFont('helvetica', isBold ? 'bold' : 'normal');
     
-    // Use extremely conservative width - fixed values to prevent any calculation errors
-    let effectiveWidth = maxWidth;
+    // Use extremely conservative fixed widths based on actual PDF page dimensions
+    // Standard PDF page is 595.28 x 841.89 points
+    let effectiveWidth: number;
     
-    // Different safety margins based on text type and position
-    if (isBold || fontSize > 11) {
-      // Headings need extra space
-      effectiveWidth = Math.min(420, pageWidth - x - 35);
+    if (x <= 25) {
+      // Left margin text - most conservative
+      effectiveWidth = 500;
+    } else if (x <= 35) {
+      // Slightly indented
+      effectiveWidth = 480;
     } else {
-      // Regular text
-      effectiveWidth = Math.min(450, pageWidth - x - 30);
+      // More indented text
+      effectiveWidth = 450;
     }
     
-    // Additional safety for indented text
-    if (x > margin + 5) {
-      effectiveWidth -= 15;
+    // Additional reduction for bold/heading text
+    if (isBold || fontSize > 11) {
+      effectiveWidth -= 30;
     }
     
-    // Ensure minimum width
-    effectiveWidth = Math.max(200, effectiveWidth);
+    // Manual word wrapping with character-level precision
+    const words = cleanText.split(' ');
+    const lines: string[] = [];
+    let currentLine = '';
     
-    const lines = doc.splitTextToSize(cleanText, effectiveWidth);
+    for (const word of words) {
+      const testLine = currentLine ? `${currentLine} ${word}` : word;
+      const testWidth = doc.getTextWidth(testLine);
+      
+      if (testWidth <= effectiveWidth) {
+        currentLine = testLine;
+      } else {
+        if (currentLine) {
+          lines.push(currentLine);
+          currentLine = word;
+        } else {
+          // Word is too long, break it character by character
+          let charLine = '';
+          for (const char of word) {
+            const testChar = charLine + char;
+            if (doc.getTextWidth(testChar) <= effectiveWidth) {
+              charLine = testChar;
+            } else {
+              if (charLine) lines.push(charLine);
+              charLine = char;
+            }
+          }
+          currentLine = charLine;
+        }
+      }
+    }
+    
+    if (currentLine) {
+      lines.push(currentLine);
+    }
+    
     let currentY = y;
-    
-    // Check if we need a page break before starting
-    const lineHeight = fontSize * 0.7 + 1;
-    const totalHeight = lines.length * lineHeight;
+    const lineHeight = fontSize * 0.8 + 2;
     const pageHeight = doc.internal.pageSize.height;
     
-    if (currentY + totalHeight > pageHeight - 50) {
+    // Check if we need a page break before starting
+    if (currentY + (lines.length * lineHeight) > pageHeight - 50) {
       doc.addPage();
       currentY = 40;
     }
     
-    // Add each line with proper spacing
-    lines.forEach((line: string, index: number) => {
+    // Add each line
+    lines.forEach((line: string) => {
       if (currentY > pageHeight - 50) {
         doc.addPage();
         currentY = 40;
@@ -95,7 +128,7 @@ export const generatePDFReport = async (
       currentY += lineHeight;
     });
     
-    return currentY + (isBold ? 8 : 5);
+    return currentY + (isBold ? 10 : 6);
   };
 
   // Helper function to check if we need a new page
