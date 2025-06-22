@@ -41,7 +41,7 @@ export const generatePDFReport = async (
   const margin = 20;
   let yPosition = margin;
 
-  // Helper function to add text with wrapping - simple and reliable approach
+  // Helper function to add text with wrapping - use the passed maxWidth parameter
   const addWrappedText = (text: string, x: number, y: number, maxWidth: number, fontSize: number = 10, isBold: boolean = false): number => {
     if (!text || text.trim() === '') return y;
     
@@ -52,21 +52,18 @@ export const generatePDFReport = async (
     doc.setFontSize(fontSize);
     doc.setFont('helvetica', isBold ? 'bold' : 'normal');
     
-    // Use very simple, conservative width calculation
-    // PDF page width is ~595 points, so with 20pt margins we have ~555 points
-    // Being extra conservative: use maximum 480 points for any text
-    let effectiveWidth = 480;
+    // Use the passed maxWidth parameter with a small safety margin
+    let effectiveWidth = maxWidth - 20; // 20pt safety margin
     
-    // Reduce width based on indentation
-    if (x > 25) effectiveWidth -= (x - 20); // Reduce by indentation amount
-    
-    // Additional safety margin for headings
-    if (isBold || fontSize > 11) effectiveWidth -= 20;
+    // Additional safety margin for headings (they tend to be wider)
+    if (isBold || fontSize > 11) {
+      effectiveWidth -= 10;
+    }
     
     // Ensure we don't go below a reasonable minimum
-    effectiveWidth = Math.max(300, effectiveWidth);
+    effectiveWidth = Math.max(200, effectiveWidth);
     
-    // Use jsPDF's built-in text splitting with our conservative width
+    // Use jsPDF's built-in text splitting with the calculated width
     const lines = doc.splitTextToSize(cleanText, effectiveWidth);
     
     let currentY = y;
