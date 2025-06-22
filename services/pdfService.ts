@@ -41,7 +41,7 @@ export const generatePDFReport = async (
   const margin = 20;
   let yPosition = margin;
 
-  // Helper function to add text with wrapping - using manual word wrapping for better control
+  // Helper function to add text with wrapping - simple and reliable approach
   const addWrappedText = (text: string, x: number, y: number, maxWidth: number, fontSize: number = 10, isBold: boolean = false): number => {
     if (!text || text.trim() === '') return y;
     
@@ -52,83 +52,44 @@ export const generatePDFReport = async (
     doc.setFontSize(fontSize);
     doc.setFont('helvetica', isBold ? 'bold' : 'normal');
     
-    // Use extremely conservative fixed widths based on actual PDF page dimensions
-    // Standard PDF page is 595.28 x 841.89 points
-    let effectiveWidth: number;
+    // Use very simple, conservative width calculation
+    // PDF page width is ~595 points, so with 20pt margins we have ~555 points
+    // Being extra conservative: use maximum 480 points for any text
+    let effectiveWidth = 480;
     
-    if (x <= 25) {
-      // Left margin text - most conservative
-      effectiveWidth = 500;
-    } else if (x <= 35) {
-      // Slightly indented
-      effectiveWidth = 480;
-    } else {
-      // More indented text
-      effectiveWidth = 450;
-    }
+    // Reduce width based on indentation
+    if (x > 25) effectiveWidth -= (x - 20); // Reduce by indentation amount
     
-    // Additional reduction for bold/heading text
-    if (isBold || fontSize > 11) {
-      effectiveWidth -= 30;
-    }
+    // Additional safety margin for headings
+    if (isBold || fontSize > 11) effectiveWidth -= 20;
     
-    // Manual word wrapping with character-level precision
-    const words = cleanText.split(' ');
-    const lines: string[] = [];
-    let currentLine = '';
+    // Ensure we don't go below a reasonable minimum
+    effectiveWidth = Math.max(300, effectiveWidth);
     
-    for (const word of words) {
-      const testLine = currentLine ? `${currentLine} ${word}` : word;
-      const testWidth = doc.getTextWidth(testLine);
-      
-      if (testWidth <= effectiveWidth) {
-        currentLine = testLine;
-      } else {
-        if (currentLine) {
-          lines.push(currentLine);
-          currentLine = word;
-        } else {
-          // Word is too long, break it character by character
-          let charLine = '';
-          for (const char of word) {
-            const testChar = charLine + char;
-            if (doc.getTextWidth(testChar) <= effectiveWidth) {
-              charLine = testChar;
-            } else {
-              if (charLine) lines.push(charLine);
-              charLine = char;
-            }
-          }
-          currentLine = charLine;
-        }
-      }
-    }
-    
-    if (currentLine) {
-      lines.push(currentLine);
-    }
+    // Use jsPDF's built-in text splitting with our conservative width
+    const lines = doc.splitTextToSize(cleanText, effectiveWidth);
     
     let currentY = y;
-    const lineHeight = fontSize * 0.8 + 2;
+    const lineHeight = fontSize * 1.2;
     const pageHeight = doc.internal.pageSize.height;
     
-    // Check if we need a page break before starting
+    // Check if we need a page break
     if (currentY + (lines.length * lineHeight) > pageHeight - 50) {
       doc.addPage();
       currentY = 40;
     }
     
-    // Add each line
-    lines.forEach((line: string) => {
+    // Add each line individually for better control
+    for (let i = 0; i < lines.length; i++) {
       if (currentY > pageHeight - 50) {
         doc.addPage();
         currentY = 40;
       }
-      doc.text(line.trim(), x, currentY);
+      doc.text(lines[i], x, currentY);
       currentY += lineHeight;
-    });
+    }
     
-    return currentY + (isBold ? 10 : 6);
+    return currentY + 5;
   };
 
   // Helper function to check if we need a new page
