@@ -764,7 +764,14 @@ export const AnalysisDisplay: React.FC<AnalysisDisplayProps> = ({ result, produc
       {hasContentToShow && (
         <div className="mt-6 flex justify-center">
           <button
-            onClick={() => generatePDFReport(parsedAnalysis, productRequirements, complianceScore || undefined)}
+            onClick={async () => {
+              try {
+                await generatePDFReport(parsedAnalysis, productRequirements, complianceScore || undefined);
+              } catch (error) {
+                console.error('Failed to generate PDF:', error);
+                alert('Failed to generate PDF. Please try again.');
+              }
+            }}
             className="inline-flex items-center px-6 py-3 bg-sky-600 hover:bg-sky-700 dark:bg-sky-500 dark:hover:bg-sky-600 text-white font-semibold rounded-lg shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105"
           >
             <Download className="h-5 w-5 mr-2" />

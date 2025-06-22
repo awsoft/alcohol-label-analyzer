@@ -8,11 +8,30 @@ declare module 'jspdf' {
   }
 }
 
-export const generatePDFReport = (
+// Helper function to load image as base64
+const loadImageAsBase64 = (src: string): Promise<string> => {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+      canvas.width = img.width;
+      canvas.height = img.height;
+      ctx?.drawImage(img, 0, 0);
+      const dataURL = canvas.toDataURL('image/png');
+      resolve(dataURL);
+    };
+    img.onerror = reject;
+    img.src = src;
+  });
+};
+
+export const generatePDFReport = async (
   parsedAnalysis: ParsedAnalysis,
   productRequirements: ProductRequirements,
   complianceScore?: { compliant: number; total: number; percentage: number }
-): void => {
+): Promise<void> => {
   const doc = new jsPDF();
   const pageWidth = doc.internal.pageSize.width;
   const margin = 20;
@@ -20,10 +39,22 @@ export const generatePDFReport = (
 
   // Helper function to add text with wrapping
   const addWrappedText = (text: string, x: number, y: number, maxWidth: number, fontSize: number = 10): number => {
+    if (!text || text.trim() === '') return y;
+    
     doc.setFontSize(fontSize);
-    const lines = doc.splitTextToSize(text, maxWidth);
+    // Ensure proper max width calculation
+    const effectiveMaxWidth = Math.min(maxWidth, pageWidth - x - 10);
+    const lines = doc.splitTextToSize(text, effectiveMaxWidth);
+    
+    // Check if we need page breaks for long content
+    const totalHeight = lines.length * fontSize * 0.6;
+    if (y + totalHeight > doc.internal.pageSize.height - margin) {
+      doc.addPage();
+      y = margin;
+    }
+    
     doc.text(lines, x, y);
-    return y + (lines.length * fontSize * 0.6);
+    return y + (lines.length * fontSize * 0.6) + 3;
   };
 
   // Helper function to check if we need a new page
@@ -35,18 +66,37 @@ export const generatePDFReport = (
     return yPosition;
   };
 
-  // Add header with logo area (placeholder)
+  // Add header with logo
   doc.setFillColor(0, 102, 153); // Aardwolf blue
   doc.rect(0, 0, pageWidth, 40, 'F');
   
-  doc.setTextColor(255, 255, 255);
-  doc.setFontSize(20);
-  doc.setFont('helvetica', 'bold');
-  doc.text('AARDWOLF', margin, 25);
-  
-  doc.setFontSize(16);
-  doc.setFont('helvetica', 'normal');
-  doc.text('Alcohol Label Compliance Analyzer', margin, 35);
+  // Add logo
+  try {
+    const logoBase64 = await loadImageAsBase64('/assets/images/aardwolf-logo-light.png');
+    // Add logo to PDF (scaled appropriately)
+    doc.addImage(logoBase64, 'PNG', margin, 8, 25, 25); // x, y, width, height
+    
+    // Add text next to logo
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(20);
+    doc.setFont('helvetica', 'bold');
+    doc.text('AARDWOLF', margin + 30, 25);
+    
+    doc.setFontSize(16);
+    doc.setFont('helvetica', 'normal');
+    doc.text('Alcohol Label Compliance Analyzer', margin + 30, 35);
+  } catch (error) {
+    console.warn('Failed to load logo for PDF, using text fallback:', error);
+    // Fallback to text if logo fails to load
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(20);
+    doc.setFont('helvetica', 'bold');
+    doc.text('AARDWOLF', margin, 25);
+    
+    doc.setFontSize(16);
+    doc.setFont('helvetica', 'normal');
+    doc.text('Alcohol Label Compliance Analyzer', margin, 35);
+  }
 
   yPosition = 55;
   doc.setTextColor(0, 0, 0);
@@ -114,8 +164,7 @@ export const generatePDFReport = (
       doc.setFontSize(10);
       parsedAnalysis.overview.keyIssues.forEach((issue) => {
         yPosition = checkPageBreak(15);
-        doc.text('• ' + issue, margin + 5, yPosition);
-        yPosition += 6;
+        yPosition = addWrappedText('• ' + issue, margin + 5, yPosition, pageWidth - margin * 2 - 5, 10);
       });
       yPosition += 10;
     }
@@ -137,15 +186,15 @@ export const generatePDFReport = (
       // Item title
       doc.setFontSize(11);
       doc.setFont('helvetica', 'bold');
-      doc.text(`${index + 1}. ${item.title}`, margin, yPosition);
-      yPosition += 8;
+      yPosition = addWrappedText(`${index + 1}. ${item.title}`, margin, yPosition, pageWidth - margin * 2, 11);
+      yPosition += 5;
 
       // Item details
       doc.setFont('helvetica', 'normal');
       doc.setFontSize(9);
       
       item.details.forEach((detail) => {
-        yPosition = checkPageBreak(15);
+        yPosition = checkPageBreak(20);
         
         // Clean the value text (remove markdown and icons)
         let cleanValue = detail.value
@@ -154,22 +203,27 @@ export const generatePDFReport = (
           .replace(/\s+/g, ' ') // Normalize whitespace
           .trim();
 
-        // Add compliance status indicator
+        // Add compliance status indicator and format compliance notes
         if (detail.isComplianceNote) {
           let statusIndicator = '';
           const lowerValue = cleanValue.toLowerCase();
           if (lowerValue.includes('compliant') && !lowerValue.includes('non-compliant')) {
-            statusIndicator = '[✓] ';
+            statusIndicator = '✓ COMPLIANT: ';
           } else if (lowerValue.includes('non-compliant') || lowerValue.includes('missing') || lowerValue.includes('required')) {
-            statusIndicator = '[✗] ';
+            statusIndicator = '✗ NOT REQUIRED: ';
           } else if (lowerValue.includes('partial')) {
-            statusIndicator = '[⚠] ';
+            statusIndicator = '⚠ PARTIAL: ';
           }
+          // Clean up repetitive text
+          cleanValue = cleanValue.replace(/TTB Compliance Notes:\s*/i, '');
           cleanValue = statusIndicator + cleanValue;
         }
 
-        const detailText = `${detail.label}: ${cleanValue}`;
-        yPosition = addWrappedText(detailText, margin + 10, yPosition, pageWidth - margin * 2 - 10, 9);
+        // Format label and value with proper wrapping
+        doc.setFont('helvetica', 'bold');
+        yPosition = addWrappedText(`${detail.label}:`, margin + 10, yPosition, pageWidth - margin * 2 - 10, 9);
+        doc.setFont('helvetica', 'normal');
+        yPosition = addWrappedText(cleanValue, margin + 15, yPosition, pageWidth - margin * 2 - 15, 9);
         yPosition += 3;
       });
       
@@ -192,16 +246,21 @@ export const generatePDFReport = (
       
       doc.setFontSize(12);
       doc.setFont('helvetica', 'bold');
-      doc.text(subSection.title, margin, yPosition);
-      yPosition += 8;
+      yPosition = addWrappedText(subSection.title, margin, yPosition, pageWidth - margin * 2, 12);
+      yPosition += 5;
 
       doc.setFont('helvetica', 'normal');
       doc.setFontSize(10);
       
       subSection.points.forEach((point) => {
         yPosition = checkPageBreak(15);
-        yPosition = addWrappedText('• ' + point, margin + 5, yPosition, pageWidth - margin * 2 - 5, 10);
-        yPosition += 3;
+        // Clean the point text
+        const cleanPoint = point
+          .replace(/\*\*(.*?)\*\*/g, '$1')
+          .replace(/✅|❌|⚠️|ℹ️/g, '')
+          .replace(/\s+/g, ' ')
+          .trim();
+        yPosition = addWrappedText('• ' + cleanPoint, margin + 5, yPosition, pageWidth - margin * 2 - 5, 10);
       });
       
       yPosition += 10;
@@ -230,7 +289,7 @@ export const generatePDFReport = (
         .replace(/\s+/g, ' ')
         .trim();
       yPosition = addWrappedText(cleanContent, margin, yPosition, pageWidth - margin * 2, 10);
-      yPosition += 8;
+      yPosition += 5;
     });
   }
 
