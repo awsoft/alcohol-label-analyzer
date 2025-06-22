@@ -41,7 +41,7 @@ export const generatePDFReport = async (
   const margin = 20;
   let yPosition = margin;
 
-  // Helper function to add text with wrapping - use the passed maxWidth parameter
+  // Helper function to add text with wrapping - DEAD SIMPLE approach with fixed safe width
   const addWrappedText = (text: string, x: number, y: number, maxWidth: number, fontSize: number = 10, isBold: boolean = false): number => {
     if (!text || text.trim() === '') return y;
     
@@ -52,19 +52,12 @@ export const generatePDFReport = async (
     doc.setFontSize(fontSize);
     doc.setFont('helvetica', isBold ? 'bold' : 'normal');
     
-    // Use the passed maxWidth parameter with a small safety margin
-    let effectiveWidth = maxWidth - 20; // 20pt safety margin
+    // IGNORE all calculations - use a fixed width that DEFINITELY works
+    // 400 points is about 67% of page width - absolutely safe
+    const SAFE_WIDTH = 400;
     
-    // Additional safety margin for headings (they tend to be wider)
-    if (isBold || fontSize > 11) {
-      effectiveWidth -= 10;
-    }
-    
-    // Ensure we don't go below a reasonable minimum
-    effectiveWidth = Math.max(200, effectiveWidth);
-    
-    // Use jsPDF's built-in text splitting with the calculated width
-    const lines = doc.splitTextToSize(cleanText, effectiveWidth);
+    // Use jsPDF's built-in text splitting with the fixed safe width
+    const lines = doc.splitTextToSize(cleanText, SAFE_WIDTH);
     
     let currentY = y;
     const lineHeight = fontSize * 1.2;
