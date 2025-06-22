@@ -149,7 +149,7 @@ export const generatePDFReport = async (
   if (parsedAnalysis.overview) {
     yPosition = checkPageBreak(40);
     
-    yPosition = addWrappedText('Compliance Status Overview', margin, yPosition, pageWidth - 60, 14, true);
+    yPosition = addWrappedText('Compliance Status Overview', margin, yPosition, pageWidth - 120, 14, true);
     yPosition += 5;
 
     // Status with colored background
@@ -186,12 +186,12 @@ export const generatePDFReport = async (
 
     // Key Issues
     if (parsedAnalysis.overview.keyIssues && parsedAnalysis.overview.keyIssues.length > 0) {
-      yPosition = addWrappedText('Key Issues Identified:', margin, yPosition, pageWidth - 60, 12, true);
+      yPosition = addWrappedText('Key Issues Identified:', margin, yPosition, pageWidth - 120, 12, true);
       yPosition += 3;
       
       parsedAnalysis.overview.keyIssues.forEach((issue) => {
         yPosition = checkPageBreak(15);
-        yPosition = addWrappedText('• ' + issue, margin + 5, yPosition, pageWidth - 70, 10, false);
+        yPosition = addWrappedText('• ' + issue, margin + 5, yPosition, pageWidth - 140, 10, false);
       });
       yPosition += 10;
     }
@@ -202,14 +202,14 @@ export const generatePDFReport = async (
   if (mandatorySection && mandatorySection.items) {
     yPosition = checkPageBreak(40);
     
-    yPosition = addWrappedText('TTB Mandatory Label Information', margin, yPosition, pageWidth - 60, 14, true);
+    yPosition = addWrappedText('TTB Mandatory Label Information', margin, yPosition, pageWidth - 120, 14, true);
     yPosition += 10;
 
     mandatorySection.items.forEach((item, index) => {
       yPosition = checkPageBreak(30);
       
       // Item title
-      yPosition = addWrappedText(`${index + 1}. ${item.title}`, margin, yPosition, pageWidth - 60, 11, true);
+      yPosition = addWrappedText(`${index + 1}. ${item.title}`, margin, yPosition, pageWidth - 120, 11, true);
       yPosition += 5;
       
       item.details.forEach((detail) => {
@@ -239,8 +239,8 @@ export const generatePDFReport = async (
         }
 
         // Format label and value with proper wrapping - use very conservative widths
-        yPosition = addWrappedText(`${detail.label}:`, margin + 10, yPosition, pageWidth - 80, 9, true);
-        yPosition = addWrappedText(cleanValue, margin + 15, yPosition, pageWidth - 85, 9, false);
+        yPosition = addWrappedText(`${detail.label}:`, margin + 10, yPosition, pageWidth - 150, 9, true);
+        yPosition = addWrappedText(cleanValue, margin + 15, yPosition, pageWidth - 160, 9, false);
         yPosition += 3;
       });
       
@@ -253,13 +253,13 @@ export const generatePDFReport = async (
   if (observationsSection && observationsSection.observationSubSections) {
     yPosition = checkPageBreak(40);
     
-    yPosition = addWrappedText('Other TTB Compliance Observations', margin, yPosition, pageWidth - 60, 14, true);
+    yPosition = addWrappedText('Other TTB Compliance Observations', margin, yPosition, pageWidth - 120, 14, true);
     yPosition += 10;
 
     observationsSection.observationSubSections.forEach((subSection) => {
       yPosition = checkPageBreak(25);
       
-      yPosition = addWrappedText(subSection.title, margin, yPosition, pageWidth - 60, 12, true);
+      yPosition = addWrappedText(subSection.title, margin, yPosition, pageWidth - 120, 12, true);
       yPosition += 5;
       
       subSection.points.forEach((point) => {
@@ -270,7 +270,7 @@ export const generatePDFReport = async (
           .replace(/✅|❌|⚠️|ℹ️/g, '')
           .replace(/\s+/g, ' ')
           .trim();
-        yPosition = addWrappedText('• ' + cleanPoint, margin + 5, yPosition, pageWidth - 70, 10, false);
+        yPosition = addWrappedText('• ' + cleanPoint, margin + 5, yPosition, pageWidth - 140, 10, false);
       });
       
       yPosition += 10;
@@ -282,7 +282,7 @@ export const generatePDFReport = async (
   if (summarySection && summarySection.freeTextContent) {
     yPosition = checkPageBreak(40);
     
-    yPosition = addWrappedText('Overall TTB Compliance Summary', margin, yPosition, pageWidth - 60, 14, true);
+    yPosition = addWrappedText('Overall TTB Compliance Summary', margin, yPosition, pageWidth - 120, 14, true);
     yPosition += 10;
     
     summarySection.freeTextContent.forEach((content) => {
@@ -293,7 +293,7 @@ export const generatePDFReport = async (
         .replace(/✅|❌|⚠️|ℹ️/g, '')
         .replace(/\s+/g, ' ')
         .trim();
-      yPosition = addWrappedText(cleanContent, margin, yPosition, pageWidth - 60, 10, false);
+      yPosition = addWrappedText(cleanContent, margin, yPosition, pageWidth - 120, 10, false);
       yPosition += 5;
     });
   }
