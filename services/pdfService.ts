@@ -41,32 +41,61 @@ export const generatePDFReport = async (
   const margin = 20;
   let yPosition = margin;
 
-  // Helper function to add text with wrapping
-  const addWrappedText = (text: string, x: number, y: number, maxWidth: number, fontSize: number = 10): number => {
+  // Helper function to add text with wrapping - completely rewritten for better reliability
+  const addWrappedText = (text: string, x: number, y: number, maxWidth: number, fontSize: number = 10, isBold: boolean = false): number => {
     if (!text || text.trim() === '') return y;
     
+    // Clean text of problematic characters
+    const cleanText = text.replace(/[^\x20-\x7E\n\r]/g, ' ').replace(/\s+/g, ' ').trim();
+    if (!cleanText) return y;
+    
     doc.setFontSize(fontSize);
-    // Use very conservative width calculation to prevent any cutoff
-    const rightMargin = Math.max(margin, 25); // Ensure at least 25pt right margin
-    const safeWidth = Math.min(maxWidth, pageWidth - x - rightMargin);
+    doc.setFont('helvetica', isBold ? 'bold' : 'normal');
     
-    if (safeWidth <= 0) {
-      console.warn('Invalid text width calculated, using fallback');
-      return y + 10;
+    // Use extremely conservative width - fixed values to prevent any calculation errors
+    let effectiveWidth = maxWidth;
+    
+    // Different safety margins based on text type and position
+    if (isBold || fontSize > 11) {
+      // Headings need extra space
+      effectiveWidth = Math.min(420, pageWidth - x - 35);
+    } else {
+      // Regular text
+      effectiveWidth = Math.min(450, pageWidth - x - 30);
     }
     
-    const lines = doc.splitTextToSize(text, safeWidth);
+    // Additional safety for indented text
+    if (x > margin + 5) {
+      effectiveWidth -= 15;
+    }
     
-    // Check if we need page breaks for long content
-    const lineHeight = fontSize * 0.6; // Better line spacing
+    // Ensure minimum width
+    effectiveWidth = Math.max(200, effectiveWidth);
+    
+    const lines = doc.splitTextToSize(cleanText, effectiveWidth);
+    let currentY = y;
+    
+    // Check if we need a page break before starting
+    const lineHeight = fontSize * 0.7 + 1;
     const totalHeight = lines.length * lineHeight;
-    if (y + totalHeight > doc.internal.pageSize.height - margin - 15) {
+    const pageHeight = doc.internal.pageSize.height;
+    
+    if (currentY + totalHeight > pageHeight - 50) {
       doc.addPage();
-      y = margin + 20; // Start with some top padding on new page
+      currentY = 40;
     }
     
-    doc.text(lines, x, y);
-    return y + totalHeight + 5;
+    // Add each line with proper spacing
+    lines.forEach((line: string, index: number) => {
+      if (currentY > pageHeight - 50) {
+        doc.addPage();
+        currentY = 40;
+      }
+      doc.text(line.trim(), x, currentY);
+      currentY += lineHeight;
+    });
+    
+    return currentY + (isBold ? 8 : 5);
   };
 
   // Helper function to check if we need a new page
@@ -78,12 +107,12 @@ export const generatePDFReport = async (
     return yPosition;
   };
 
-  // Add clean header with logo centered at top
+  // Add clean header with properly sized logo
   try {
     const logoData = await loadImageAsBase64('/assets/images/aardwolf-logo-light.png');
     
-    // Calculate proportional dimensions - target height of 35px for prominence
-    const targetHeight = 35;
+    // Calculate proportional dimensions - target height of 20px for good balance
+    const targetHeight = 20;
     const aspectRatio = logoData.width / logoData.height;
     const logoWidth = targetHeight * aspectRatio;
     const logoHeight = targetHeight;
@@ -91,24 +120,24 @@ export const generatePDFReport = async (
     // Center logo horizontally
     const logoX = (pageWidth - logoWidth) / 2;
     
-    // Add logo to PDF (centered, no background)
+    // Add logo to PDF (centered, appropriately sized)
     doc.addImage(logoData.dataURL, 'PNG', logoX, 15, logoWidth, logoHeight);
     
-    yPosition = 60;
+    yPosition = 45;
   } catch (error) {
     console.warn('Failed to load logo for PDF, using text fallback:', error);
     // Fallback to text if logo fails to load
     doc.setTextColor(0, 0, 0);
-    doc.setFontSize(24);
+    doc.setFontSize(16);
     doc.setFont('helvetica', 'bold');
-    doc.text('AARDWOLF', pageWidth / 2, 30, { align: 'center' });
+    doc.text('AARDWOLF', pageWidth / 2, 25, { align: 'center' });
     
-    yPosition = 45;
+    yPosition = 35;
   }
 
   // Add company subtitle
   doc.setTextColor(100, 100, 100);
-  doc.setFontSize(12);
+  doc.setFontSize(10);
   doc.setFont('helvetica', 'normal');
   doc.text('Alcohol Label Compliance Analyzer', pageWidth / 2, yPosition, { align: 'center' });
   yPosition += 20;
@@ -129,10 +158,8 @@ export const generatePDFReport = async (
   if (parsedAnalysis.overview) {
     yPosition = checkPageBreak(40);
     
-    doc.setFontSize(14);
-    doc.setFont('helvetica', 'bold');
-    doc.text('Compliance Status Overview', margin, yPosition);
-    yPosition += 10;
+    yPosition = addWrappedText('Compliance Status Overview', margin, yPosition, pageWidth - 60, 14, true);
+    yPosition += 5;
 
     // Status with colored background
     const status = parsedAnalysis.overview.status;
@@ -168,16 +195,12 @@ export const generatePDFReport = async (
 
     // Key Issues
     if (parsedAnalysis.overview.keyIssues && parsedAnalysis.overview.keyIssues.length > 0) {
-      doc.setFont('helvetica', 'bold');
-      doc.setFontSize(12);
-      doc.text('Key Issues Identified:', margin, yPosition);
-      yPosition += 8;
+      yPosition = addWrappedText('Key Issues Identified:', margin, yPosition, pageWidth - 60, 12, true);
+      yPosition += 3;
       
-      doc.setFont('helvetica', 'normal');
-      doc.setFontSize(10);
       parsedAnalysis.overview.keyIssues.forEach((issue) => {
         yPosition = checkPageBreak(15);
-        yPosition = addWrappedText('• ' + issue, margin + 5, yPosition, pageWidth - 70, 10);
+        yPosition = addWrappedText('• ' + issue, margin + 5, yPosition, pageWidth - 70, 10, false);
       });
       yPosition += 10;
     }
@@ -188,23 +211,15 @@ export const generatePDFReport = async (
   if (mandatorySection && mandatorySection.items) {
     yPosition = checkPageBreak(40);
     
-    doc.setFontSize(14);
-    doc.setFont('helvetica', 'bold');
-    doc.text('TTB Mandatory Label Information', margin, yPosition);
-    yPosition += 15;
+    yPosition = addWrappedText('TTB Mandatory Label Information', margin, yPosition, pageWidth - 60, 14, true);
+    yPosition += 10;
 
     mandatorySection.items.forEach((item, index) => {
       yPosition = checkPageBreak(30);
       
       // Item title
-      doc.setFontSize(11);
-      doc.setFont('helvetica', 'bold');
-      yPosition = addWrappedText(`${index + 1}. ${item.title}`, margin, yPosition, pageWidth - 60, 11);
+      yPosition = addWrappedText(`${index + 1}. ${item.title}`, margin, yPosition, pageWidth - 60, 11, true);
       yPosition += 5;
-
-      // Item details
-      doc.setFont('helvetica', 'normal');
-      doc.setFontSize(9);
       
       item.details.forEach((detail) => {
         yPosition = checkPageBreak(20);
@@ -233,10 +248,8 @@ export const generatePDFReport = async (
         }
 
         // Format label and value with proper wrapping - use very conservative widths
-        doc.setFont('helvetica', 'bold');
-        yPosition = addWrappedText(`${detail.label}:`, margin + 10, yPosition, pageWidth - 80, 9);
-        doc.setFont('helvetica', 'normal');
-        yPosition = addWrappedText(cleanValue, margin + 15, yPosition, pageWidth - 85, 9);
+        yPosition = addWrappedText(`${detail.label}:`, margin + 10, yPosition, pageWidth - 80, 9, true);
+        yPosition = addWrappedText(cleanValue, margin + 15, yPosition, pageWidth - 85, 9, false);
         yPosition += 3;
       });
       
@@ -249,21 +262,14 @@ export const generatePDFReport = async (
   if (observationsSection && observationsSection.observationSubSections) {
     yPosition = checkPageBreak(40);
     
-    doc.setFontSize(14);
-    doc.setFont('helvetica', 'bold');
-    doc.text('Other TTB Compliance Observations', margin, yPosition);
-    yPosition += 15;
+    yPosition = addWrappedText('Other TTB Compliance Observations', margin, yPosition, pageWidth - 60, 14, true);
+    yPosition += 10;
 
     observationsSection.observationSubSections.forEach((subSection) => {
       yPosition = checkPageBreak(25);
       
-      doc.setFontSize(12);
-      doc.setFont('helvetica', 'bold');
-      yPosition = addWrappedText(subSection.title, margin, yPosition, pageWidth - 60, 12);
+      yPosition = addWrappedText(subSection.title, margin, yPosition, pageWidth - 60, 12, true);
       yPosition += 5;
-
-      doc.setFont('helvetica', 'normal');
-      doc.setFontSize(10);
       
       subSection.points.forEach((point) => {
         yPosition = checkPageBreak(15);
@@ -273,7 +279,7 @@ export const generatePDFReport = async (
           .replace(/✅|❌|⚠️|ℹ️/g, '')
           .replace(/\s+/g, ' ')
           .trim();
-        yPosition = addWrappedText('• ' + cleanPoint, margin + 5, yPosition, pageWidth - 70, 10);
+        yPosition = addWrappedText('• ' + cleanPoint, margin + 5, yPosition, pageWidth - 70, 10, false);
       });
       
       yPosition += 10;
@@ -285,13 +291,8 @@ export const generatePDFReport = async (
   if (summarySection && summarySection.freeTextContent) {
     yPosition = checkPageBreak(40);
     
-    doc.setFontSize(14);
-    doc.setFont('helvetica', 'bold');
-    doc.text('Overall TTB Compliance Summary', margin, yPosition);
-    yPosition += 15;
-
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(10);
+    yPosition = addWrappedText('Overall TTB Compliance Summary', margin, yPosition, pageWidth - 60, 14, true);
+    yPosition += 10;
     
     summarySection.freeTextContent.forEach((content) => {
       yPosition = checkPageBreak(20);
@@ -301,7 +302,7 @@ export const generatePDFReport = async (
         .replace(/✅|❌|⚠️|ℹ️/g, '')
         .replace(/\s+/g, ' ')
         .trim();
-      yPosition = addWrappedText(cleanContent, margin, yPosition, pageWidth - 60, 10);
+      yPosition = addWrappedText(cleanContent, margin, yPosition, pageWidth - 60, 10, false);
       yPosition += 5;
     });
   }
