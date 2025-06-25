@@ -61,18 +61,22 @@ export const Header: React.FC = () => {
             />
           </a>
           
-          {/* Settings Menu */}
+          {/* Theme Toggle Menu */}
           <div className="relative">
             <button
               onClick={() => setShowSettings(!showSettings)}
               className={`p-2 rounded-lg transition-colors duration-200 ${
                 isDarkMode 
-                  ? 'hover:bg-slate-700 text-slate-400 hover:text-slate-200' 
+                  ? 'hover:bg-slate-700 text-yellow-400 hover:text-yellow-300' 
                   : 'hover:bg-slate-100 text-slate-600 hover:text-slate-800'
               }`}
-              title="Settings"
+              title="Theme Settings"
             >
-              <Settings className="h-5 w-5" />
+              {isDarkMode ? (
+                <Sun className="h-5 w-5" />
+              ) : (
+                <Moon className="h-5 w-5" />
+              )}
             </button>
             
             {/* Settings Dropdown */}
