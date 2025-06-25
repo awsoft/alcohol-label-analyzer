@@ -4,7 +4,6 @@ import { ShieldCheck, Settings, Sun, Moon } from 'lucide-react'; // Using lucide
 
 export const Header: React.FC = () => {
   const [isDarkMode, setIsDarkMode] = useState(false);
-  const [showSettings, setShowSettings] = useState(false);
 
   // Check for saved theme preference or default to light mode
   useEffect(() => {
@@ -33,8 +32,6 @@ export const Header: React.FC = () => {
       localStorage.setItem('theme', 'light');
       document.body.className = 'bg-slate-100 text-slate-800';
     }
-    
-    setShowSettings(false);
   };
 
   return (
@@ -61,63 +58,24 @@ export const Header: React.FC = () => {
             />
           </a>
           
-          {/* Theme Toggle Menu */}
-          <div className="relative">
-            <button
-              onClick={() => setShowSettings(!showSettings)}
-              className={`p-2 rounded-lg transition-colors duration-200 ${
-                isDarkMode 
-                  ? 'hover:bg-slate-700 text-yellow-400 hover:text-yellow-300' 
-                  : 'hover:bg-slate-100 text-slate-600 hover:text-slate-800'
-              }`}
-              title="Theme Settings"
-            >
-              {isDarkMode ? (
-                <Sun className="h-5 w-5" />
-              ) : (
-                <Moon className="h-5 w-5" />
-              )}
-            </button>
-            
-            {/* Settings Dropdown */}
-            {showSettings && (
-              <div className={`absolute right-0 mt-2 w-48 rounded-lg shadow-lg border ${
-                isDarkMode 
-                  ? 'bg-slate-800 border-slate-700' 
-                  : 'bg-white border-slate-200'
-              } z-50`}>
-                <div className="p-2">
-                  <button
-                    onClick={toggleTheme}
-                    className={`w-full flex items-center space-x-3 px-3 py-2 rounded-md transition-colors duration-200 ${
-                      isDarkMode
-                        ? 'hover:bg-slate-700 text-slate-300'
-                        : 'hover:bg-slate-100 text-slate-700'
-                    }`}
-                  >
-                    {isDarkMode ? (
-                      <Sun className="h-4 w-4" />
-                    ) : (
-                      <Moon className="h-4 w-4" />
-                    )}
-                    <span className="text-sm">
-                      Switch to {isDarkMode ? 'Light' : 'Dark'} Mode
-                    </span>
-                  </button>
-                </div>
-              </div>
+          {/* Theme Toggle */}
+          <button
+            onClick={toggleTheme}
+            className={`p-2 rounded-lg transition-colors duration-200 ${
+              isDarkMode 
+                ? 'hover:bg-slate-700 text-yellow-400 hover:text-yellow-300' 
+                : 'hover:bg-slate-100 text-slate-600 hover:text-slate-800'
+            }`}
+            title={`Switch to ${isDarkMode ? 'Light' : 'Dark'} Mode`}
+          >
+            {isDarkMode ? (
+              <Sun className="h-5 w-5" />
+            ) : (
+              <Moon className="h-5 w-5" />
             )}
-          </div>
+          </button>
         </div>
       </div>
-      
-      {/* Click outside to close settings */}
-      {showSettings && (
-        <div 
-          className="fixed inset-0 z-40" 
-          onClick={() => setShowSettings(false)}
-        />
-      )}
     </header>
   );
 };
