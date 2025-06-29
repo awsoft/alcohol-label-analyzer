@@ -1,4 +1,3 @@
-
 // This file is for global TypeScript types and interfaces.
 
 export interface PlaceholderType {
@@ -64,4 +63,58 @@ export interface ProductRequirements {
   includesSulfites: boolean;
   includesYellowNumberFive: boolean;
   includesAspartame: boolean;
+}
+
+export type BeverageCategory = 'distilled-spirits' | 'wine' | 'malt-beverages';
+
+export interface BeverageCategoryInfo {
+  id: BeverageCategory;
+  name: string;
+  description: string;
+  examples: string[];
+}
+
+export const BEVERAGE_CATEGORIES: BeverageCategoryInfo[] = [
+  {
+    id: 'distilled-spirits',
+    name: 'Distilled Spirits',
+    description: 'Vodka, whiskey, rum, gin, brandy, and other distilled alcoholic beverages',
+    examples: ['Vodka', 'Whiskey', 'Rum', 'Gin', 'Brandy', 'Tequila']
+  },
+  {
+    id: 'wine',
+    name: 'Wine',
+    description: 'Wine, cider, mead, and other fermented grape or fruit beverages',
+    examples: ['Table Wine', 'Sparkling Wine', 'Dessert Wine', 'Cider', 'Mead']
+  },
+  {
+    id: 'malt-beverages',
+    name: 'Malt Beverages',
+    description: 'Beer, ale, lager, and other malt-based alcoholic beverages',
+    examples: ['Beer', 'Ale', 'Lager', 'Stout', 'IPA', 'Porter']
+  }
+];
+
+// Category-specific requirements
+export interface CategorySpecificRequirements {
+  distilledSpirits: {
+    hasColoringMaterials: boolean;
+    hasWoodTreatment: boolean;
+    includesFDCYellow5: boolean;
+    includesSaccharin: boolean;
+    includesSulfites: boolean;
+    needsAgeStatement: boolean;
+    needsCommodityStatement: boolean;
+    needsStateOfDistillation: boolean;
+  };
+  wine: {
+    includesFDCYellow5: boolean;
+    includesCochinealCarmine: boolean;
+    includesSulfites: boolean;
+    hasForeignWinePercentage: boolean;
+  };
+  maltBeverages: {
+    // Malt beverages have fewer specific requirements
+    // Most requirements are covered by common mandatory items
+  };
 }

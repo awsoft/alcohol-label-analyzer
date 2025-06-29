@@ -1,8 +1,11 @@
 // App version - update this when releasing new versions
 export const APP_VERSION = "1.0.0";
 
-export const GEMINI_PROMPT = `
-You are an expert in U.S. Alcohol and Tobacco Tax and Trade Bureau (TTB) alcohol beverage labeling regulations. Analyze the provided alcohol label image STRICTLY based on TTB requirements.
+import { BeverageCategory } from './types';
+
+// Base prompt that applies to all beverage types
+const BASE_PROMPT = `
+You are an expert in U.S. Alcohol and Tobacco Tax and Trade Bureau (TTB) alcohol beverage labeling regulations. Analyze the provided alcohol label image STRICTLY based on TTB requirements for the specified beverage category.
 
 Provide a detailed report in a structured, itemized list format. For each item, state whether it appears to be present and compliant, and provide the specific information as seen on the label. If information is not visible, unclear, or potentially non-compliant, clearly state that and explain why.
 
@@ -54,22 +57,81 @@ Provide a detailed report in a structured, itemized list format. For each item, 
     *   Presence & Legibility (if applicable): (Is it present and readable, if the product is imported?)
     *   Stated Country (as shown): (Quote the country of origin statement, e.g., "PRODUCT OF [COUNTRY]")
     *   TTB Compliance Notes: (Start with COMPLIANT/NON-COMPLIANT/POTENTIAL ISSUE/NOT REQUIRED, then explain - use "NOT REQUIRED: Not required for domestic products" if it's a domestic product)
+`;
 
-8.  **Declaration of Sulfites (Required for wine containing 10 ppm or more of sulfur dioxide):**
-    *   Presence & Legibility (if applicable to wine): (Is a sulfite declaration present and readable, if it's a wine product?)
-    *   Statement (as shown): (Quote the statement, e.g., "CONTAINS SULFITES")
-    *   TTB Compliance Notes: (Start with COMPLIANT/NON-COMPLIANT/POTENTIAL ISSUE/NOT REQUIRED, then explain - use "NOT REQUIRED" if not applicable to this product type)
+// Category-specific additional requirements
+const DISTILLED_SPIRITS_REQUIREMENTS = `
+8.  **Presence of Coloring Materials:**
+    *   Presence & Legibility: (Is a coloring disclosure present and readable?)
+    *   Statement (as shown): (Quote any coloring statements, e.g., "COLORED WITH CARAMEL")
+    *   TTB Compliance Notes: (Start with COMPLIANT/NON-COMPLIANT/POTENTIAL ISSUE/NOT REQUIRED, then explain coloring material disclosure requirements)
 
-9.  **Declaration of FD&C Yellow No. 5 (if present in the product):**
+9.  **Treatment with Wood (for Whisky/Brandy):**
+    *   Presence & Legibility: (Is wood treatment disclosure present if applicable?)
+    *   Statement (as shown): (Quote any wood treatment statements)
+    *   TTB Compliance Notes: (Start with COMPLIANT/NON-COMPLIANT/POTENTIAL ISSUE/NOT REQUIRED, then explain wood treatment disclosure requirements)
+
+10. **Declaration of FD&C Yellow No. 5 (if present in the product):**
     *   Presence & Legibility (if applicable): (Is a declaration for FD&C Yellow No. 5 present and readable, if used?)
     *   Statement (as shown): (Quote the statement, e.g., "CONTAINS FD&C YELLOW #5")
     *   TTB Compliance Notes: (Start with COMPLIANT/NON-COMPLIANT/POTENTIAL ISSUE/NOT REQUIRED, then explain - use "NOT REQUIRED" if the colorant is not used in the product)
 
-10. **Declaration of Aspartame (if present in the product):**
-    *   Presence & Legibility (if applicable): (Is a declaration for Aspartame present and readable, if used?)
-    *   Statement (as shown): (Quote the statement, e.g., "PHENYLKETONURICS: CONTAINS PHENYLALANINE")
-    *   TTB Compliance Notes: (Start with COMPLIANT/NON-COMPLIANT/POTENTIAL ISSUE/NOT REQUIRED, then explain - use "NOT REQUIRED" if aspartame is not used in the product)
+11. **Declaration of Saccharin (if present in the product):**
+    *   Presence & Legibility (if applicable): (Is a saccharin warning present and readable, if used?)
+    *   Statement (as shown): (Quote the warning statement)
+    *   TTB Compliance Notes: (Start with COMPLIANT/NON-COMPLIANT/POTENTIAL ISSUE/NOT REQUIRED, then explain - use "NOT REQUIRED" if saccharin is not used)
 
+12. **Declaration of Sulfites (Required if 10 ppm or more):**
+    *   Presence & Legibility (if applicable): (Is a sulfite declaration present and readable, if used?)
+    *   Statement (as shown): (Quote the statement, e.g., "CONTAINS SULFITES")
+    *   TTB Compliance Notes: (Start with COMPLIANT/NON-COMPLIANT/POTENTIAL ISSUE/NOT REQUIRED, then explain - use "NOT REQUIRED" if sulfites are not used)
+
+13. **Commodity Statement (if applicable):**
+    *   Presence & Legibility: (Is a commodity statement present if required?)
+    *   Statement (as shown): (Quote any commodity statements, e.g., "% NEUTRAL SPIRITS DISTILLED FROM [SOURCE]")
+    *   TTB Compliance Notes: (Start with COMPLIANT/NON-COMPLIANT/POTENTIAL ISSUE/NOT REQUIRED, then explain commodity statement requirements)
+
+14. **Statements of Age (if applicable):**
+    *   Presence & Legibility: (Is an age statement present if required?)
+    *   Statement (as shown): (Quote any age statements)
+    *   TTB Compliance Notes: (Start with COMPLIANT/NON-COMPLIANT/POTENTIAL ISSUE/NOT REQUIRED, then explain age statement requirements for whisky <4 years, grape brandy <2 years)
+
+15. **State of Distillation (for U.S. Whisky):**
+    *   Presence & Legibility: (Is state of distillation shown if required?)
+    *   Statement (as shown): (Quote the state information)
+    *   TTB Compliance Notes: (Start with COMPLIANT/NON-COMPLIANT/POTENTIAL ISSUE/NOT REQUIRED, then explain state of distillation requirements)
+`;
+
+const WINE_REQUIREMENTS = `
+8.  **Declaration of FD&C Yellow No. 5 (if present in the product):**
+    *   Presence & Legibility (if applicable): (Is a declaration for FD&C Yellow No. 5 present and readable, if used?)
+    *   Statement (as shown): (Quote the statement, e.g., "CONTAINS FD&C YELLOW NO. 5")
+    *   TTB Compliance Notes: (Start with COMPLIANT/NON-COMPLIANT/POTENTIAL ISSUE/NOT REQUIRED, then explain - use "NOT REQUIRED" if the colorant is not used in the product)
+
+9.  **Declaration of Cochineal Extract/Carmine (if present in the product):**
+    *   Presence & Legibility (if applicable): (Is a declaration for cochineal extract or carmine present and readable, if used?)
+    *   Statement (as shown): (Quote the statement, e.g., "CONTAINS COCHINEAL EXTRACT" or "CONTAINS CARMINE")
+    *   TTB Compliance Notes: (Start with COMPLIANT/NON-COMPLIANT/POTENTIAL ISSUE/NOT REQUIRED, then explain - use "NOT REQUIRED" if these colorants are not used)
+
+10. **Declaration of Sulfites (Required for wine containing 10 ppm or more):**
+    *   Presence & Legibility (if applicable): (Is a sulfite declaration present and readable, if applicable?)
+    *   Statement (as shown): (Quote the statement, e.g., "CONTAINS SULFITES")
+    *   TTB Compliance Notes: (Start with COMPLIANT/NON-COMPLIANT/POTENTIAL ISSUE/NOT REQUIRED, then explain - use "NOT REQUIRED" if sulfites are below 10 ppm)
+
+11. **Percentage of Foreign Wine (if mentioned):**
+    *   Presence & Legibility (if applicable): (Is foreign wine percentage stated if mentioned?)
+    *   Statement (as shown): (Quote any foreign wine percentage statements)
+    *   TTB Compliance Notes: (Start with COMPLIANT/NON-COMPLIANT/POTENTIAL ISSUE/NOT REQUIRED, then explain foreign wine percentage requirements)
+`;
+
+const MALT_BEVERAGES_REQUIREMENTS = `
+8.  **Additional Malt Beverage Specific Requirements:**
+    *   Note: Malt beverages have fewer additional mandatory disclosure requirements compared to distilled spirits and wine
+    *   TTB Compliance Notes: (Start with COMPLIANT, then note that malt beverages primarily require the common mandatory elements listed above)
+`;
+
+// Closing sections for all categories
+const CLOSING_SECTIONS = `
 **Other TTB Compliance Observations:**
 
 *   **Missing Mandatory Information:** Explicitly list any TTB mandatory information (from the items above or others like saccharin or specific commodity treatments if applicable) that appears to be entirely missing.
@@ -85,3 +147,24 @@ Provide a detailed report in a structured, itemized list format. For each item, 
 **Overall TTB Compliance Summary:**
 *   Provide a brief concluding summary highlighting the label's apparent TTB compliance strengths and any critical TTB-related weaknesses or areas of concern found.
 `;
+
+export const getCategorySpecificPrompt = (category: BeverageCategory): string => {
+  let categoryRequirements = '';
+  
+  switch (category) {
+    case 'distilled-spirits':
+      categoryRequirements = DISTILLED_SPIRITS_REQUIREMENTS;
+      break;
+    case 'wine':
+      categoryRequirements = WINE_REQUIREMENTS;
+      break;
+    case 'malt-beverages':
+      categoryRequirements = MALT_BEVERAGES_REQUIREMENTS;
+      break;
+  }
+  
+  return BASE_PROMPT + categoryRequirements + CLOSING_SECTIONS;
+};
+
+// Keep the original prompt for backward compatibility
+export const GEMINI_PROMPT = getCategorySpecificPrompt('distilled-spirits');

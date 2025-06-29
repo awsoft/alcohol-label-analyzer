@@ -1,6 +1,6 @@
 import { GoogleGenAI, GenerateContentResponse, Part } from "@google/genai";
-import { GEMINI_PROMPT } from '../constants';
-import { ProductRequirements } from '../types';
+import { getCategorySpecificPrompt } from '../constants';
+import { ProductRequirements, BeverageCategory } from '../types';
 
 const API_KEY = process.env.API_KEY;
 
@@ -32,6 +32,7 @@ export const getApiKeyStatus = (): { isConfigured: boolean; status: string } => 
 export const analyzeLabelViaservice = async (
   imageBase64: string, 
   mimeType: string, 
+  beverageCategory: BeverageCategory,
   productRequirements?: ProductRequirements
 ): Promise<string> => {
   if (!API_KEY) {
@@ -46,20 +47,24 @@ export const analyzeLabelViaservice = async (
       },
     };
 
-    // Build the prompt with product requirements information
-    let enhancedPrompt = GEMINI_PROMPT;
+    // Get the category-specific prompt
+    let enhancedPrompt = getCategorySpecificPrompt(beverageCategory);
     
+    // Add category information to the prompt
+    enhancedPrompt = `BEVERAGE CATEGORY: ${beverageCategory.toUpperCase().replace('-', ' ')}\n\n` + enhancedPrompt;
+
+    // Build the prompt with product requirements information (legacy support)
     if (productRequirements) {
       const requirementsText = `
 
 **CRITICAL: PRODUCT REQUIREMENTS SPECIFIED BY USER:**
 The user has specified which ingredients are present in their product. You MUST follow these instructions exactly:
 
-${productRequirements.includesSulfites ? '- Item 8 (Declaration of Sulfites): This product CONTAINS sulfites. Look for sulfite declarations and evaluate compliance. If missing, mark as "NON-COMPLIANT: Required sulfite declaration is missing."' : '- Item 8 (Declaration of Sulfites): This product does NOT contain sulfites. You MUST mark TTB Compliance Notes as "NOT REQUIRED: This product does not contain sulfites." Do not evaluate for sulfite declarations.'}
+${productRequirements.includesSulfites ? '- Sulfite Declaration: This product CONTAINS sulfites. Look for sulfite declarations and evaluate compliance. If missing, mark as "NON-COMPLIANT: Required sulfite declaration is missing."' : '- Sulfite Declaration: This product does NOT contain sulfites. You MUST mark TTB Compliance Notes as "NOT REQUIRED: This product does not contain sulfites." Do not evaluate for sulfite declarations.'}
 
-${productRequirements.includesYellowNumberFive ? '- Item 9 (Declaration of FD&C Yellow No. 5): This product CONTAINS FD&C Yellow No. 5. Look for FD&C Yellow No. 5 declarations and evaluate compliance. If missing, mark as "NON-COMPLIANT: Required FD&C Yellow No. 5 declaration is missing."' : '- Item 9 (Declaration of FD&C Yellow No. 5): This product does NOT contain FD&C Yellow No. 5. You MUST mark TTB Compliance Notes as "NOT REQUIRED: This product does not contain FD&C Yellow No. 5." Do not evaluate for color declarations.'}
+${productRequirements.includesYellowNumberFive ? '- FD&C Yellow No. 5 Declaration: This product CONTAINS FD&C Yellow No. 5. Look for FD&C Yellow No. 5 declarations and evaluate compliance. If missing, mark as "NON-COMPLIANT: Required FD&C Yellow No. 5 declaration is missing."' : '- FD&C Yellow No. 5 Declaration: This product does NOT contain FD&C Yellow No. 5. You MUST mark TTB Compliance Notes as "NOT REQUIRED: This product does not contain FD&C Yellow No. 5." Do not evaluate for color declarations.'}
 
-${productRequirements.includesAspartame ? '- Item 10 (Declaration of Aspartame): This product CONTAINS aspartame. Look for aspartame/phenylalanine declarations and evaluate compliance. If missing, mark as "NON-COMPLIANT: Required aspartame declaration is missing."' : '- Item 10 (Declaration of Aspartame): This product does NOT contain aspartame. You MUST mark TTB Compliance Notes as "NOT REQUIRED: This product does not contain aspartame." Do not evaluate for aspartame declarations.'}
+${productRequirements.includesAspartame ? '- Aspartame Declaration: This product CONTAINS aspartame. Look for aspartame/phenylalanine declarations and evaluate compliance. If missing, mark as "NON-COMPLIANT: Required aspartame declaration is missing."' : '- Aspartame Declaration: This product does NOT contain aspartame. You MUST mark TTB Compliance Notes as "NOT REQUIRED: This product does not contain aspartame." Do not evaluate for aspartame declarations.'}
 
 REMEMBER: Start each TTB Compliance Notes section with the exact status: "COMPLIANT:", "NON-COMPLIANT:", "POTENTIAL ISSUE:", or "NOT REQUIRED:"
 

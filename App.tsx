@@ -1,13 +1,13 @@
-
 import React, { useState, useCallback, useEffect } from 'react';
 import { Analytics } from '@vercel/analytics/react';
 import { Header } from './components/Header';
 import { Footer } from './components/Footer';
 import { ImageUploader } from './components/ImageUploader';
+import { BeverageCategorySelector } from './components/BeverageCategorySelector';
 import { AnalysisDisplay } from './components/AnalysisDisplay';
 import { LoadingSpinner } from './components/LoadingSpinner';
 import { analyzeLabelViaservice } from './services/geminiService';
-import { ProductRequirements } from './types';
+import { ProductRequirements, BeverageCategory } from './types';
 import { AlertTriangle, CheckCircle, Info, UploadCloud, Settings } from 'lucide-react';
 
 // Gemini supported MIME types for gemini-2.5-flash-preview-04-17
@@ -91,6 +91,9 @@ const App: React.FC = () => {
     includesYellowNumberFive: false,
     includesAspartame: false,
   });
+
+  // Beverage category state - default to distilled spirits
+  const [beverageCategory, setBeverageCategory] = useState<BeverageCategory>('distilled-spirits');
 
   useEffect(() => {
     if (!process.env.API_KEY) {
@@ -186,7 +189,7 @@ const App: React.FC = () => {
     setAnalysisResult(null);
 
     try {
-      const result = await analyzeLabelViaservice(imageBase64, imageMimeType, productRequirements);
+      const result = await analyzeLabelViaservice(imageBase64, imageMimeType, beverageCategory, productRequirements);
       setAnalysisResult(result);
       setHasAnalyzed(true);
     } catch (e: any) {
@@ -303,6 +306,13 @@ const App: React.FC = () => {
               
               {/* Product Requirements Selector */}
               <ProductRequirementsSelector />
+              
+                             {/* Beverage Category Selector */}
+               <BeverageCategorySelector
+                 selectedCategory={beverageCategory}
+                 onCategoryChange={(category: BeverageCategory) => setBeverageCategory(category)}
+                 disabled={isLoading || hasAnalyzed}
+               />
               
               <button
                 onClick={handleAnalyze}
