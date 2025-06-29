@@ -3,13 +3,11 @@ import { FileText, CheckCircle, AlertTriangle, Info, ShieldAlert, ShieldCheck, S
 import { 
     ReportSectionData, 
     ReportItem, 
-    ReportDetail, 
     ObservationSubSection, 
     KNOWN_SECTION_KEYS, 
     SectionKey,
     ReportOverviewData,
     ParsedAnalysis,
-    ComplianceStatus,
     ProductRequirements
 } from '../types';
 import { generatePDFReport } from '../services/pdfService';

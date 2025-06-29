@@ -6,6 +6,60 @@ export interface PlaceholderType {
   name: string;
 }
 
+// ---- Types for Multiple Image Upload ----
+
+export type LabelType = 'front' | 'back' | 'neck' | 'side' | 'other';
+
+export interface LabelImage {
+  id: string;
+  file: File;
+  labelType: LabelType;
+  base64: string;
+  mimeType: string;
+  previewUrl: string;
+  description?: string;
+}
+
+export interface LabelTypeInfo {
+  id: LabelType;
+  name: string;
+  description: string;
+  icon: string; // For UI display
+}
+
+export const LABEL_TYPES: LabelTypeInfo[] = [
+  {
+    id: 'front',
+    name: 'Front Label',
+    description: 'Main product label (front)',
+    icon: '🏷️'
+  },
+  {
+    id: 'back',
+    name: 'Back Label',
+    description: 'Back label with ingredients/details',
+    icon: '📋'
+  },
+  {
+    id: 'neck',
+    name: 'Neck Label',
+    description: 'Neck or collar label',
+    icon: '🎗️'
+  },
+  {
+    id: 'side',
+    name: 'Side Label',
+    description: 'Side panel or additional label',
+    icon: '📄'
+  },
+  {
+    id: 'other',
+    name: 'Other Label',
+    description: 'Additional stickers or medallions',
+    icon: '🏅'
+  }
+];
+
 // ---- Types for structured Analysis Report ----
 
 export const KNOWN_SECTION_KEYS = {

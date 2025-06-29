@@ -33,7 +33,7 @@ const loadImageAsBase64 = (src: string): Promise<{dataURL: string, width: number
 
 export const generatePDFReport = async (
   parsedAnalysis: ParsedAnalysis,
-  productRequirements: ProductRequirements,
+  _productRequirements: ProductRequirements,
   complianceScore?: { compliant: number; total: number; percentage: number }
 ): Promise<void> => {
   const doc = new jsPDF();
@@ -42,7 +42,7 @@ export const generatePDFReport = async (
   let yPosition = margin;
 
   // Helper function to add text with wrapping - MANUAL CHARACTER-BASED wrapping (bypass jsPDF splitTextToSize)
-  const addWrappedText = (text: string, x: number, y: number, maxWidth: number, fontSize: number = 10, isBold: boolean = false): number => {
+  const addWrappedText = (text: string, x: number, y: number, _maxWidth: number, fontSize: number = 10, isBold: boolean = false): number => {
     if (!text || text.trim() === '') return y;
     
     // Clean text of problematic characters

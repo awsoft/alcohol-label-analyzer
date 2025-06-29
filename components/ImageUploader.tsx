@@ -1,6 +1,5 @@
-
 import React, { useCallback, useState } from 'react';
-import { UploadCloud, Image as ImageIcon, XCircle } from 'lucide-react'; // Using lucide-react for icons
+import { UploadCloud, XCircle } from 'lucide-react'; // Using lucide-react for icons
 
 interface ImageUploaderProps {
   onFileSelect: (file: File | null) => void;
