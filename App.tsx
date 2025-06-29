@@ -272,7 +272,6 @@ const App: React.FC = () => {
   return (
     <div className="flex flex-col min-h-screen bg-gradient-to-br from-slate-50 via-slate-100 to-sky-50 dark:from-slate-900 dark:via-slate-800 dark:to-sky-900 text-slate-800 dark:text-slate-100 transition-colors duration-300">
               <Header 
-          apiStatus={apiKeyMissing ? "API Key not configured" : "Gemini API configured"}
           analysisStatus={
             isLoading 
               ? "Processing..." 

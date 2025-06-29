@@ -1,17 +1,21 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Settings, CheckCircle, AlertCircle, Clock, Sparkles } from 'lucide-react';
+import { GEMINI_MODEL_NAME, getApiKeyStatus } from '../services/geminiService';
+import { APP_VERSION } from '../constants';
 
 interface SettingsDropdownProps {
   analysisStatus?: string;
-  apiStatus?: string;
 }
 
 export const SettingsDropdown: React.FC<SettingsDropdownProps> = ({ 
-  analysisStatus = "Ready",
-  apiStatus = "Gemini API configured"
+  analysisStatus = "Ready"
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
+
+  // Get real API status
+  const apiStatusInfo = getApiKeyStatus();
+  const apiStatus = apiStatusInfo.status;
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -96,7 +100,7 @@ export const SettingsDropdown: React.FC<SettingsDropdownProps> = ({
                 <span className="text-xs font-medium text-slate-600 dark:text-slate-400">AI Model</span>
               </div>
               <p className="text-xs text-blue-600 dark:text-blue-400 pl-6">
-                Gemini 1.5 Pro
+                {GEMINI_MODEL_NAME}
               </p>
             </div>
 
@@ -119,7 +123,7 @@ export const SettingsDropdown: React.FC<SettingsDropdownProps> = ({
             {/* Version */}
             <div className="pt-3 border-t border-slate-200 dark:border-slate-600">
               <div className="flex items-center justify-between">
-                <span className="text-xs text-slate-500 dark:text-slate-400">Label Analyzer v1.0</span>
+                <span className="text-xs text-slate-500 dark:text-slate-400">Label Analyzer v{APP_VERSION}</span>
                 <span className="text-xs text-slate-500 dark:text-slate-400">© Aardwolf</span>
               </div>
             </div>

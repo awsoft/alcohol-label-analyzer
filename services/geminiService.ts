@@ -1,4 +1,3 @@
-
 import { GoogleGenAI, GenerateContentResponse, Part } from "@google/genai";
 import { GEMINI_PROMPT } from '../constants';
 import { ProductRequirements } from '../types';
@@ -12,6 +11,23 @@ if (!API_KEY) {
 
 const ai = new GoogleGenAI({ apiKey: API_KEY || "MISSING_API_KEY" }); // Provide a dummy if missing to avoid constructor error
 const model = 'gemini-2.5-flash-preview-04-17';
+
+// Export the model name for use in settings
+export const GEMINI_MODEL_NAME = 'Gemini 2.5 Flash Preview';
+
+// Export function to check API key status
+export const getApiKeyStatus = (): { isConfigured: boolean; status: string } => {
+  if (!API_KEY || API_KEY === "MISSING_API_KEY") {
+    return {
+      isConfigured: false,
+      status: "API Key not configured"
+    };
+  }
+  return {
+    isConfigured: true,
+    status: "Gemini API configured"
+  };
+};
 
 export const analyzeLabelViaservice = async (
   imageBase64: string, 

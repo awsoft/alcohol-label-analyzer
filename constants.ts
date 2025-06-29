@@ -1,3 +1,6 @@
+// App version - update this when releasing new versions
+export const APP_VERSION = "1.0.0";
+
 export const GEMINI_PROMPT = `
 You are an expert in U.S. Alcohol and Tobacco Tax and Trade Bureau (TTB) alcohol beverage labeling regulations. Analyze the provided alcohol label image STRICTLY based on TTB requirements.
 

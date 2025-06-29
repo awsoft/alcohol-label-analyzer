@@ -4,12 +4,10 @@ import { SettingsDropdown } from './SettingsDropdown';
 
 interface HeaderProps {
   analysisStatus?: string;
-  apiStatus?: string;
 }
 
 export const Header: React.FC<HeaderProps> = ({ 
-  analysisStatus = "Ready",
-  apiStatus = "Gemini API configured"
+  analysisStatus = "Ready"
 }) => {
   const [isDarkMode, setIsDarkMode] = useState(false);
 
@@ -91,7 +89,6 @@ export const Header: React.FC<HeaderProps> = ({
           {/* Settings Dropdown */}
           <SettingsDropdown 
             analysisStatus={analysisStatus}
-            apiStatus={apiStatus}
           />
         </div>
       </div>
