@@ -24,39 +24,33 @@ export interface LabelTypeInfo {
   id: LabelType;
   name: string;
   description: string;
-  icon: string; // For UI display
 }
 
 export const LABEL_TYPES: LabelTypeInfo[] = [
   {
     id: 'front',
     name: 'Front Label',
-    description: 'Main product label (front)',
-    icon: '🏷️'
+    description: 'Main product label (front)'
   },
   {
     id: 'back',
     name: 'Back Label',
-    description: 'Back label with ingredients/details',
-    icon: '📋'
+    description: 'Back label with ingredients/details'
   },
   {
     id: 'neck',
     name: 'Neck Label',
-    description: 'Neck or collar label',
-    icon: '🎗️'
+    description: 'Neck or collar label'
   },
   {
     id: 'side',
     name: 'Side Label',
-    description: 'Side panel or additional label',
-    icon: '📄'
+    description: 'Side panel or additional label'
   },
   {
     id: 'other',
     name: 'Other Label',
-    description: 'Additional stickers or medallions',
-    icon: '🏅'
+    description: 'Additional stickers or medallions'
   }
 ];
 

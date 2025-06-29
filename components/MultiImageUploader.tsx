@@ -268,7 +268,7 @@ export const MultiImageUploader: React.FC<MultiImageUploaderProps> = ({
                 >
                   {LABEL_TYPES.map((type) => (
                     <option key={type.id} value={type.id}>
-                      {type.icon} {type.name}
+                      {type.name}
                     </option>
                   ))}
                 </select>
@@ -311,7 +311,6 @@ export const MultiImageUploader: React.FC<MultiImageUploaderProps> = ({
                   multiple
                 />
                 <div className="px-3 py-1.5 bg-sky-600 hover:bg-sky-500 text-white text-xs rounded-md cursor-pointer transition-colors flex items-center space-x-1">
-                  <span>{type.icon}</span>
                   <span>{type.name}</span>
                 </div>
               </label>
