@@ -52,17 +52,17 @@ export const BeverageCategorySelector: React.FC<BeverageCategorySelectorProps> =
           >
             {/* Header area with icon and title */}
             <div className={`
-              p-4 pb-3 border-b h-20 flex items-center justify-center
+              p-4 pb-3 border-b h-20 flex items-center
               ${selectedCategory === category.id
                 ? 'bg-sky-100 dark:bg-sky-800/30 border-sky-200 dark:border-sky-700'
                 : 'bg-slate-100 dark:bg-slate-700/50 border-slate-200 dark:border-slate-600'
               }
             `}>
-              <div className="flex items-center">
-                <div className={`mr-3 ${selectedCategory === category.id ? 'text-sky-600 dark:text-sky-400' : 'text-slate-500 dark:text-slate-400'}`}>
+              <div className="flex items-center w-full">
+                <div className={`mr-3 flex-shrink-0 ${selectedCategory === category.id ? 'text-sky-600 dark:text-sky-400' : 'text-slate-500 dark:text-slate-400'}`}>
                   {getCategoryIcon(category.id)}
                 </div>
-                <h4 className={`font-bold text-lg ${selectedCategory === category.id ? 'text-sky-700 dark:text-sky-300' : 'text-slate-700 dark:text-slate-300'}`}>
+                <h4 className={`font-bold text-lg leading-tight ${selectedCategory === category.id ? 'text-sky-700 dark:text-sky-300' : 'text-slate-700 dark:text-slate-300'}`}>
                   {category.name}
                 </h4>
               </div>
