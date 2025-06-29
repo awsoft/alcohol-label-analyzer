@@ -1,8 +1,16 @@
-
 import React, { useState, useEffect } from 'react';
-import { ShieldCheck, Settings, Sun, Moon } from 'lucide-react'; // Using lucide-react for icons
+import { ShieldCheck } from 'lucide-react';
+import { SettingsDropdown } from './SettingsDropdown';
 
-export const Header: React.FC = () => {
+interface HeaderProps {
+  analysisStatus?: string;
+  apiStatus?: string;
+}
+
+export const Header: React.FC<HeaderProps> = ({ 
+  analysisStatus = "Ready",
+  apiStatus = "Gemini API configured"
+}) => {
   const [isDarkMode, setIsDarkMode] = useState(false);
 
   // Check for saved theme preference or default to light mode
@@ -58,22 +66,33 @@ export const Header: React.FC = () => {
             />
           </a>
           
-          {/* Theme Toggle */}
-          <button
-            onClick={toggleTheme}
-            className={`p-2 rounded-lg transition-colors duration-200 ${
-              isDarkMode 
-                ? 'hover:bg-slate-700 text-yellow-400 hover:text-yellow-300' 
-                : 'hover:bg-slate-100 text-slate-600 hover:text-slate-800'
-            }`}
-            title={`Switch to ${isDarkMode ? 'Light' : 'Dark'} Mode`}
-          >
-            {isDarkMode ? (
-              <Sun className="h-5 w-5" />
-            ) : (
-              <Moon className="h-5 w-5" />
-            )}
-          </button>
+          {/* Theme Toggle Switch */}
+          <div className="flex items-center space-x-2">
+            <span className={`text-xs ${isDarkMode ? 'text-slate-400' : 'text-slate-600'}`}>
+              {isDarkMode ? '☀️' : '🌙'}
+            </span>
+            <button
+              onClick={toggleTheme}
+              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500 ${
+                isDarkMode 
+                  ? 'bg-sky-600' 
+                  : 'bg-slate-200'
+              }`}
+              aria-label={`Switch to ${isDarkMode ? 'Light' : 'Dark'} Mode`}
+            >
+              <span
+                className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform duration-200 ${
+                  isDarkMode ? 'translate-x-6' : 'translate-x-1'
+                }`}
+              />
+            </button>
+          </div>
+
+          {/* Settings Dropdown */}
+          <SettingsDropdown 
+            analysisStatus={analysisStatus}
+            apiStatus={apiStatus}
+          />
         </div>
       </div>
     </header>

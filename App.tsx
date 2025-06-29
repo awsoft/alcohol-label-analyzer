@@ -271,7 +271,16 @@ const App: React.FC = () => {
 
   return (
     <div className="flex flex-col min-h-screen bg-gradient-to-br from-slate-50 via-slate-100 to-sky-50 dark:from-slate-900 dark:via-slate-800 dark:to-sky-900 text-slate-800 dark:text-slate-100 transition-colors duration-300">
-      <Header />
+              <Header 
+          apiStatus={apiKeyMissing ? "API Key not configured" : "Gemini API configured"}
+          analysisStatus={
+            isLoading 
+              ? "Processing..." 
+              : hasAnalyzed 
+                ? (error ? "Analysis failed" : "Analysis completed")
+                : "Ready"
+          }
+        />
       <main className="flex-grow container mx-auto px-4 py-8">
         <div className="bg-white dark:bg-slate-800 shadow-2xl rounded-xl p-6 md:p-10 transition-colors duration-300">
           <h2 className="text-3xl font-bold mb-8 text-sky-600 dark:text-sky-400 text-center transition-colors duration-300">Analyze Your Alcohol Label</h2>
