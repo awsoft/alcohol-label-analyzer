@@ -113,10 +113,11 @@ export const SettingsDropdown: React.FC<SettingsDropdownProps> = ({
                 <span className="text-xs font-medium text-slate-600 dark:text-slate-400">Features</span>
               </div>
               <div className="pl-6 space-y-1">
-                <p className="text-xs text-green-600 dark:text-green-400">✓ TTB Compliance Analysis</p>
-                <p className="text-xs text-green-600 dark:text-green-400">✓ Label Image Processing</p>
-                <p className="text-xs text-green-600 dark:text-green-400">✓ Detailed Reporting</p>
-                <p className="text-xs text-green-600 dark:text-green-400">✓ PDF Export</p>
+                <p className="text-xs text-green-600 dark:text-green-400">✓ Multi-Image Label Analysis</p>
+                <p className="text-xs text-green-600 dark:text-green-400">✓ Beverage Category Compliance</p>
+                <p className="text-xs text-green-600 dark:text-green-400">✓ Cross-Label Information Detection</p>
+                <p className="text-xs text-green-600 dark:text-green-400">✓ Professional PDF Reports</p>
+                <p className="text-xs text-green-600 dark:text-green-400">✓ Real-Time TTB Compliance</p>
               </div>
             </div>
 
