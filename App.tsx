@@ -6,11 +6,15 @@ import { MultiImageUploader } from './components/MultiImageUploader';
 import { BeverageCategorySelector } from './components/BeverageCategorySelector';
 import { AnalysisDisplay } from './components/AnalysisDisplay';
 import { LoadingSpinner } from './components/LoadingSpinner';
+import { LabelComparisonComponent } from './components/LabelComparison';
 import { analyzeMultipleLabelsViaService } from './services/geminiService';
 import { ProductRequirements, BeverageCategory, LabelImage } from './types';
-import { AlertTriangle, CheckCircle, UploadCloud, Settings } from 'lucide-react';
+import { AlertTriangle, CheckCircle, UploadCloud, Settings, FileSearch, GitCompare } from 'lucide-react';
+
+type AppMode = 'analysis' | 'comparison';
 
 const App: React.FC = () => {
+  const [appMode, setAppMode] = useState<AppMode>('analysis');
   const [labelImages, setLabelImages] = useState<LabelImage[]>([]);
   
   const [analysisResult, setAnalysisResult] = useState<string | null>(null);
@@ -79,6 +83,15 @@ const App: React.FC = () => {
       setIsLoading(false);
     }
   };
+
+  const handleModeChange = (mode: AppMode) => {
+    setAppMode(mode);
+    // Clear state when switching modes
+    setLabelImages([]);
+    setAnalysisResult(null);
+    setError(null);
+    setHasAnalyzed(false);
+  };
   
   const currentError = error;
 
@@ -141,6 +154,38 @@ const App: React.FC = () => {
     );
   };
 
+  // Mode selector component
+  const ModeSelector: React.FC = () => {
+    return (
+      <div className="flex justify-center mb-8">
+        <div className="bg-slate-100 dark:bg-slate-700 p-1 rounded-lg inline-flex">
+          <button
+            onClick={() => handleModeChange('analysis')}
+            className={`px-4 py-2 rounded-md text-sm font-medium transition-colors duration-200 flex items-center space-x-2 ${
+              appMode === 'analysis'
+                ? 'bg-sky-600 text-white shadow-sm'
+                : 'text-slate-600 dark:text-slate-300 hover:text-slate-800 dark:hover:text-slate-100'
+            }`}
+          >
+            <FileSearch className="h-4 w-4" />
+            <span>New Label</span>
+          </button>
+          <button
+            onClick={() => handleModeChange('comparison')}
+            className={`px-4 py-2 rounded-md text-sm font-medium transition-colors duration-200 flex items-center space-x-2 ${
+              appMode === 'comparison'
+                ? 'bg-sky-600 text-white shadow-sm'
+                : 'text-slate-600 dark:text-slate-300 hover:text-slate-800 dark:hover:text-slate-100'
+            }`}
+          >
+            <GitCompare className="h-4 w-4" />
+            <span>Label Change</span>
+          </button>
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div className="flex flex-col min-h-screen bg-gradient-to-br from-slate-50 via-slate-100 to-sky-50 dark:from-slate-900 dark:via-slate-800 dark:to-sky-900 text-slate-800 dark:text-slate-100 transition-colors duration-300">
       <Header 
@@ -154,8 +199,9 @@ const App: React.FC = () => {
       />
       <main className="flex-grow container mx-auto px-4 py-8">
         <div className="bg-white dark:bg-slate-800 shadow-2xl rounded-xl p-6 md:p-10 transition-colors duration-300">
-          <h2 className="text-3xl font-bold mb-8 text-sky-600 dark:text-sky-400 text-center transition-colors duration-300">Analyze Your Alcohol Labels</h2>
-          
+          {/* Mode Selector */}
+          <ModeSelector />
+
           {apiKeyMissing && !currentError?.includes("API Key") && (
             <div className="mb-6 p-4 bg-red-700 border border-red-500 rounded-lg flex items-center space-x-3">
               <AlertTriangle className="h-6 w-6 text-red-300" />
@@ -165,69 +211,78 @@ const App: React.FC = () => {
             </div>
           )}
 
-          <div className="flex flex-col gap-8">
-            <div className="w-full max-w-4xl mx-auto space-y-6">
-              {/* Multi-Image Uploader */}
-              <MultiImageUploader 
-                images={labelImages}
-                onImagesChange={handleImagesChange}
-                disabled={isLoading || apiKeyMissing}
-                maxImages={5}
-              />
+          {/* Render content based on selected mode */}
+          {appMode === 'comparison' ? (
+            <LabelComparisonComponent disabled={apiKeyMissing} />
+          ) : (
+            <>
+              <h2 className="text-3xl font-bold mb-8 text-sky-600 dark:text-sky-400 text-center transition-colors duration-300">Analyze Your Alcohol Labels</h2>
               
-              {/* Product Requirements Selector */}
-              <ProductRequirementsSelector />
-              
-              {/* Beverage Category Selector */}
-              <BeverageCategorySelector
-                selectedCategory={beverageCategory}
-                onCategoryChange={(category: BeverageCategory) => setBeverageCategory(category)}
-                disabled={isLoading || hasAnalyzed}
-              />
-              
-              <button
-                onClick={handleAnalyze}
-                disabled={labelImages.length === 0 || isLoading || apiKeyMissing || hasAnalyzed}
-                className="w-full bg-sky-600 hover:bg-sky-500 disabled:bg-slate-400 dark:disabled:bg-slate-600 text-white font-semibold py-3 px-6 rounded-lg shadow-md transition-colors duration-200 flex items-center justify-center space-x-2 text-lg disabled:cursor-not-allowed"
-              >
-                {isLoading && (!analysisResult && !currentError) ? <LoadingSpinner /> : <CheckCircle className="h-5 w-5" />}
-                <span>
-                  {isLoading && (!analysisResult && !currentError) ? 'Processing...' : 
-                   labelImages.length === 0 ? 'Upload Images to Analyze' :
-                   labelImages.length === 1 ? 'Analyze Label' : 
-                   `Analyze ${labelImages.length} Labels`}
-                </span>
-              </button>
-            </div>
+              <div className="flex flex-col gap-8">
+                <div className="w-full max-w-4xl mx-auto space-y-6">
+                  {/* Multi-Image Uploader */}
+                  <MultiImageUploader 
+                    images={labelImages}
+                    onImagesChange={handleImagesChange}
+                    disabled={isLoading || apiKeyMissing}
+                    maxImages={5}
+                  />
+                  
+                  {/* Product Requirements Selector */}
+                  <ProductRequirementsSelector />
+                  
+                  {/* Beverage Category Selector */}
+                  <BeverageCategorySelector
+                    selectedCategory={beverageCategory}
+                    onCategoryChange={(category: BeverageCategory) => setBeverageCategory(category)}
+                    disabled={isLoading || hasAnalyzed}
+                  />
+                  
+                  <button
+                    onClick={handleAnalyze}
+                    disabled={labelImages.length === 0 || isLoading || apiKeyMissing || hasAnalyzed}
+                    className="w-full bg-sky-600 hover:bg-sky-500 disabled:bg-slate-400 dark:disabled:bg-slate-600 text-white font-semibold py-3 px-6 rounded-lg shadow-md transition-colors duration-200 flex items-center justify-center space-x-2 text-lg disabled:cursor-not-allowed"
+                  >
+                    {isLoading && (!analysisResult && !currentError) ? <LoadingSpinner /> : <CheckCircle className="h-5 w-5" />}
+                    <span>
+                      {isLoading && (!analysisResult && !currentError) ? 'Processing...' : 
+                       labelImages.length === 0 ? 'Upload Images to Analyze' :
+                       labelImages.length === 1 ? 'Analyze Label' : 
+                       `Analyze ${labelImages.length} Labels`}
+                    </span>
+                  </button>
+                </div>
 
-            <div className="w-full space-y-6">
-              {currentError && (
-                <div className="p-4 bg-red-700 border border-red-500 rounded-lg flex items-start space-x-3">
-                  <AlertTriangle className="h-6 w-6 text-red-300 mt-1 flex-shrink-0" />
-                  <div>
-                    <h3 className="font-semibold text-red-200">Error</h3>
-                    <p className="text-red-300 text-sm">{currentError}</p>
-                  </div>
+                <div className="w-full space-y-6">
+                  {currentError && (
+                    <div className="p-4 bg-red-700 border border-red-500 rounded-lg flex items-start space-x-3">
+                      <AlertTriangle className="h-6 w-6 text-red-300 mt-1 flex-shrink-0" />
+                      <div>
+                        <h3 className="font-semibold text-red-200">Error</h3>
+                        <p className="text-red-300 text-sm">{currentError}</p>
+                      </div>
+                    </div>
+                  )}
+                  {isLoading && !analysisResult && !currentError && (
+                     <div className="p-4 bg-slate-100 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg flex items-center justify-center min-h-[200px] transition-colors duration-300">
+                        <LoadingSpinner />
+                        <p className="ml-3 text-slate-700 dark:text-slate-300">AI is analyzing your label images... please wait.</p>
+                     </div>
+                  )}
+                  {!isLoading && !analysisResult && !currentError && !apiKeyMissing && (
+                    <div className="p-10 bg-slate-50 dark:bg-slate-700/50 border-2 border-dashed border-slate-300 dark:border-slate-600 rounded-lg flex flex-col items-center justify-center min-h-[200px] text-center transition-colors duration-300">
+                      <UploadCloud className="h-12 w-12 text-sky-500 mb-4" />
+                      <h3 className="text-xl font-semibold text-slate-700 dark:text-slate-300">Ready for Multi-Label Analysis</h3>
+                      <p className="text-slate-600 dark:text-slate-400 max-w-md">
+                        Upload your label images (front, back, neck, etc.) and click "Analyze Labels" to get a comprehensive TTB compliance report.
+                      </p>
+                    </div>
+                  )}
+                  {analysisResult && !currentError && <AnalysisDisplay result={analysisResult} productRequirements={productRequirements} />}
                 </div>
-              )}
-              {isLoading && !analysisResult && !currentError && (
-                 <div className="p-4 bg-slate-100 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg flex items-center justify-center min-h-[200px] transition-colors duration-300">
-                    <LoadingSpinner />
-                    <p className="ml-3 text-slate-700 dark:text-slate-300">AI is analyzing your label images... please wait.</p>
-                 </div>
-              )}
-              {!isLoading && !analysisResult && !currentError && !apiKeyMissing && (
-                <div className="p-10 bg-slate-50 dark:bg-slate-700/50 border-2 border-dashed border-slate-300 dark:border-slate-600 rounded-lg flex flex-col items-center justify-center min-h-[200px] text-center transition-colors duration-300">
-                  <UploadCloud className="h-12 w-12 text-sky-500 mb-4" />
-                  <h3 className="text-xl font-semibold text-slate-700 dark:text-slate-300">Ready for Multi-Label Analysis</h3>
-                  <p className="text-slate-600 dark:text-slate-400 max-w-md">
-                    Upload your label images (front, back, neck, etc.) and click "Analyze Labels" to get a comprehensive TTB compliance report.
-                  </p>
-                </div>
-              )}
-              {analysisResult && !currentError && <AnalysisDisplay result={analysisResult} productRequirements={productRequirements} />}
-            </div>
-          </div>
+              </div>
+            </>
+          )}
         </div>
       </main>
       <Footer />

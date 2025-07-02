@@ -1,6 +1,6 @@
 import { GoogleGenAI, GenerateContentResponse, Part } from "@google/genai";
-import { getCategorySpecificPrompt } from '../constants';
-import { ProductRequirements, BeverageCategory, LabelImage } from '../types';
+import { getCategorySpecificPrompt, COMPARISON_PROMPT, APP_VERSION } from '../constants';
+import { ProductRequirements, BeverageCategory, LabelImage, LabelComparison } from '../types';
 
 const API_KEY = process.env.API_KEY;
 
@@ -28,6 +28,8 @@ export const getApiKeyStatus = (): { isConfigured: boolean; status: string } => 
     status: "Gemini API configured"
   };
 };
+
+
 
 // Legacy single image analysis function - maintained for backward compatibility
 export const analyzeLabelViaservice = async (
@@ -204,5 +206,98 @@ REMEMBER: Start each TTB Compliance Notes section with the exact status: "COMPLI
         throw new Error("You have exceeded your Gemini API quota. Please check your usage and limits.");
     }
     throw new Error(`Failed to analyze labels: ${error.message || 'Unknown API error'}`);
+  }
+};
+
+// New label comparison function for TTB submission analysis
+export const compareLabelVersionsViaService = async (
+  comparison: LabelComparison
+): Promise<string> => {
+  if (!API_KEY) {
+    throw new Error("Gemini API Key is not configured. Please contact support or check environment variables.");
+  }
+
+  if (comparison.oldImages.length === 0 || comparison.newImages.length === 0) {
+    throw new Error("Both old and new images are required for comparison.");
+  }
+  
+  try {
+    // Create image parts for old images
+    const oldImageParts: Part[] = comparison.oldImages.map((image) => ({
+      inlineData: {
+        mimeType: image.mimeType,
+        data: image.base64,
+      },
+    }));
+
+    // Create image parts for new images
+    const newImageParts: Part[] = comparison.newImages.map((image) => ({
+      inlineData: {
+        mimeType: image.mimeType,
+        data: image.base64,
+      },
+    }));
+
+    const comparisonInstructions = `
+
+**LABEL CHANGE ANALYSIS:**
+BEVERAGE CATEGORY: ${comparison.beverageCategory.toUpperCase().replace('-', ' ')}
+
+You are comparing a CURRENT (approved) label image against a PROPOSED (new design) label image for the same product to determine TTB submission requirements.
+
+**IMAGES TO ANALYZE:**
+- CURRENT IMAGE: Shows the currently approved label design
+- PROPOSED IMAGE: Shows the new proposed label design
+
+**CRITICAL ANALYSIS REQUIREMENTS:**
+- Examine both images side-by-side with extreme care
+- Identify EVERY difference between the two images, no matter how small
+- Pay special attention to text content, numbers, volume statements, alcohol percentages
+- Note any additions, deletions, or modifications of any element
+
+ANALYZE THE CHANGES between current and proposed versions and determine if TTB submission is required based on the significance of changes to TTB-regulated elements.
+
+`;
+
+    // Add product requirements context
+    let requirementsContext = '';
+    if (comparison.productRequirements) {
+      requirementsContext = `
+
+**PRODUCT REQUIREMENTS CONTEXT:**
+${comparison.productRequirements.includesSulfites ? '- Product CONTAINS sulfites' : '- Product does NOT contain sulfites'}
+${comparison.productRequirements.includesYellowNumberFive ? '- Product CONTAINS FD&C Yellow No. 5' : '- Product does NOT contain FD&C Yellow No. 5'}
+${comparison.productRequirements.includesAspartame ? '- Product CONTAINS aspartame' : '- Product does NOT contain aspartame'}
+
+`;
+    }
+
+    const textPart: Part = {
+      text: comparisonInstructions + requirementsContext + COMPARISON_PROMPT,
+    };
+
+    // Combine all parts (old images + new images + text prompt)
+    const allParts = [...oldImageParts, ...newImageParts, textPart];
+
+    const response: GenerateContentResponse = await ai.models.generateContent({
+      model: model,
+      contents: { parts: allParts },
+    });
+    
+    const text = response.text;
+    if (!text) {
+        throw new Error("Received an empty response from the AI. The label comparison might have failed.");
+    }
+    return text;
+
+  } catch (error: any) {
+    console.error("Error calling Gemini API for label comparison:", error);
+    if (error.message && error.message.includes('API key not valid')) {
+        throw new Error("The configured Gemini API Key is invalid. Please verify your API_KEY.");
+    }
+    if (error.message && error.message.includes('quota')) {
+        throw new Error("You have exceeded your Gemini API quota. Please check your usage and limits.");
+    }
+    throw new Error(`Failed to compare labels: ${error.message || 'Unknown API error'}`);
   }
 };

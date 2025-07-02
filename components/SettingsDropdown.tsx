@@ -30,20 +30,32 @@ export const SettingsDropdown: React.FC<SettingsDropdownProps> = ({
     };
   }, []);
 
-  const getStatusColor = (status: string) => {
-    if (status.includes('configured') || status.includes('Ready') || status.includes('completed')) {
+  const getStatusColor = (status: string, isConfigured?: boolean) => {
+    // For API status, use the isConfigured flag for accuracy
+    if (isConfigured !== undefined) {
+      return isConfigured ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400';
+    }
+    
+    // For other statuses, use string matching
+    if (status.includes('Ready') || status.includes('completed') || status.includes('configured')) {
       return 'text-green-600 dark:text-green-400';
-    } else if (status.includes('not configured') || status.includes('Error')) {
+    } else if (status.includes('Error') || status.includes('failed')) {
       return 'text-red-600 dark:text-red-400';
     } else {
       return 'text-yellow-600 dark:text-yellow-400';
     }
   };
 
-  const getStatusIcon = (status: string) => {
-    if (status.includes('configured') || status.includes('Ready') || status.includes('completed')) {
+  const getStatusIcon = (status: string, isConfigured?: boolean) => {
+    // For API status, use the isConfigured flag for accuracy
+    if (isConfigured !== undefined) {
+      return isConfigured ? <CheckCircle className="w-4 h-4" /> : <AlertCircle className="w-4 h-4" />;
+    }
+    
+    // For other statuses, use string matching
+    if (status.includes('Ready') || status.includes('completed') || status.includes('configured')) {
       return <CheckCircle className="w-4 h-4" />;
-    } else if (status.includes('not configured') || status.includes('Error')) {
+    } else if (status.includes('Error') || status.includes('failed')) {
       return <AlertCircle className="w-4 h-4" />;
     } else {
       return <Clock className="w-4 h-4" />;
@@ -68,12 +80,12 @@ export const SettingsDropdown: React.FC<SettingsDropdownProps> = ({
             {/* API Status */}
             <div className="mb-4">
               <div className="flex items-center mb-2">
-                <div className={`mr-2 ${getStatusColor(apiStatus)}`}>
-                  {getStatusIcon(apiStatus)}
+                <div className={`mr-2 ${getStatusColor(apiStatus, apiStatusInfo.isConfigured)}`}>
+                  {getStatusIcon(apiStatus, apiStatusInfo.isConfigured)}
                 </div>
                 <span className="text-xs font-medium text-slate-600 dark:text-slate-400">API Status</span>
               </div>
-              <p className={`text-xs ${getStatusColor(apiStatus)} pl-6`}>
+              <p className={`text-xs ${getStatusColor(apiStatus, apiStatusInfo.isConfigured)} pl-6`}>
                 {apiStatus}
               </p>
             </div>
@@ -114,10 +126,12 @@ export const SettingsDropdown: React.FC<SettingsDropdownProps> = ({
               </div>
               <div className="pl-6 space-y-1">
                 <p className="text-xs text-green-600 dark:text-green-400">✓ Multi-Image Label Analysis</p>
+                <p className="text-xs text-green-600 dark:text-green-400">✓ Label Change Comparison</p>
+                <p className="text-xs text-green-600 dark:text-green-400">✓ Visual Change Detection</p>
+                <p className="text-xs text-green-600 dark:text-green-400">✓ TTB Submission Analysis</p>
                 <p className="text-xs text-green-600 dark:text-green-400">✓ Beverage Category Compliance</p>
                 <p className="text-xs text-green-600 dark:text-green-400">✓ Cross-Label Information Detection</p>
                 <p className="text-xs text-green-600 dark:text-green-400">✓ Professional PDF Reports</p>
-                <p className="text-xs text-green-600 dark:text-green-400">✓ Real-Time TTB Compliance</p>
               </div>
             </div>
 

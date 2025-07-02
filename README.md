@@ -5,9 +5,35 @@ A React-based web application for analyzing alcohol label compliance using AI-po
 ## Features
 
 - **Image Upload**: Upload alcohol label images for analysis
+- **Multi-Image Support**: Analyze multiple label images (front, back, neck, side labels) in a single submission
+- **Beverage Category Selection**: Specify whether your product is distilled spirits, wine, or malt beverages for category-specific compliance checks
+- **Product Requirements**: Configure specific requirements like sulfite declarations, FD&C Yellow #5, and aspartame warnings
+- **Label Version Comparison**: Compare old and new label versions to determine if TTB submission is required for changes
 - **AI Analysis**: Powered by Google's Gemini AI for intelligent compliance checking
+- **TTB Submission Analysis**: Expert analysis of whether label changes require TTB approval based on federal regulations
 - **Modern UI**: Clean, responsive interface built with React and Tailwind CSS
 - **Real-time Results**: Get instant feedback on label compliance
+
+## How to Use
+
+### New Label Mode
+1. Upload your label images (supports front, back, neck, side, and other label types)
+2. Select your beverage category (Distilled Spirits, Wine, or Malt Beverages)
+3. Configure product requirements (sulfites, Yellow #5, aspartame)
+4. Click "Analyze Labels" to get a comprehensive compliance report
+
+### Label Change Mode
+1. Switch to "Label Change" mode using the toggle at the top
+2. Upload your current/approved label images in the "Current Labels" section
+3. Upload your proposed/new label images in the "Proposed Labels" section
+4. Click "Analyze Label Changes & TTB Requirements" to get analysis on whether TTB submission is required
+
+The label change analysis focuses specifically on:
+- **Critical Changes**: Modifications that require TTB submission (brand name, alcohol content, mandatory statements)
+- **Minor Changes**: Modifications that may require TTB submission (ingredients, optional statements)
+- **Cosmetic Changes**: Modifications that don't require TTB submission (colors, fonts, graphics)
+
+This streamlined approach is designed specifically for analyzing changes between label versions rather than conducting a full compliance review.
 
 ## Setup
 

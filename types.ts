@@ -166,3 +166,46 @@ export interface CategorySpecificRequirements {
     // Most requirements are covered by common mandatory items
   };
 }
+
+// ---- Types for Label Comparison Feature ----
+
+export type TTBSubmissionRequirement = 'required' | 'not-required' | 'recommended' | 'uncertain';
+
+export interface LabelComparison {
+  oldImages: LabelImage[];
+  newImages: LabelImage[];
+  beverageCategory: BeverageCategory;
+  productRequirements: ProductRequirements;
+}
+
+export interface ComparisonChange {
+  category: string;
+  field: string;
+  oldValue: string;
+  newValue: string;
+  significance: 'major' | 'minor' | 'cosmetic';
+  ttbRelevance: 'high' | 'medium' | 'low';
+  description: string;
+}
+
+export interface TTBSubmissionAnalysis {
+  submissionRequired: TTBSubmissionRequirement;
+  reasoning: string;
+  criticalChanges: ComparisonChange[];
+  minorChanges: ComparisonChange[];
+  cosmeticChanges: ComparisonChange[];
+  recommendations: string[];
+  riskLevel: 'high' | 'medium' | 'low';
+}
+
+export interface LabelComparisonResult {
+  analysisText: string;
+  submissionAnalysis: TTBSubmissionAnalysis;
+  detectedChanges: ComparisonChange[];
+  summary: {
+    totalChanges: number;
+    criticalChanges: number;
+    minorChanges: number;
+    cosmeticChanges: number;
+  };
+}
