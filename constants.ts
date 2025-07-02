@@ -5,75 +5,82 @@ import { BeverageCategory } from './types';
 
 // TTB Label Comparison Analysis Prompt for detecting changes between label versions
 export const COMPARISON_PROMPT = `
-You are an expert in U.S. TTB (Alcohol and Tobacco Tax and Trade Bureau) labeling regulations and label change approval requirements. You are analyzing changes between a CURRENT (approved) version and PROPOSED (new design) version of alcohol product labels to determine if TTB submission is required.
+**CRITICAL INSTRUCTIONS - READ CAREFULLY:**
 
-**CRITICAL TTB SUBMISSION ANALYSIS:**
+You are analyzing TWO DIFFERENT alcohol label images. Your job is to find EVERY difference between them, no matter how small.
 
-**YOUR TASK:** Compare the current and proposed label images pixel by pixel and identify EVERY difference between them. For each change found, provide the approximate pixel coordinates so we can highlight it visually.
+**STEP 1 - MANDATORY PRE-ANALYSIS:**
+Before doing anything else, you MUST examine the bottom-left area of both images (coordinates approximately x:50-150, y:450-600) and report what text you see there. This area commonly contains volume statements like "750 ML".
 
-**CRITICAL DETECTION FOCUS:**
-- VOLUME/SIZE CHANGES: Look specifically for "750 ML", "750ml", "700 ML", "700ml", "1L", "375ml", etc.
-- ALCOHOL CONTENT: Look for "40%", "38%", "% ALC", "% ABV", alcohol percentages
-- BRAND NAMES: Compare every letter and word in brand names
-- MANDATORY STATEMENTS: Government warnings, producer information, etc.
-- SMALL TEXT: Examine all fine print, barcodes area, bottom text
+**STEP 2 - SYSTEMATIC COMPARISON:**
+Compare these specific areas in both images and report ANY differences:
+1. Bottom-left corner text (volume/size information)
+2. Bottom-right corner text  
+3. Brand name area (top center)
+4. Alcohol content statements
+5. Government warning text
+6. Producer/company information
+7. Any barcodes or small print
 
-**ANALYSIS METHODOLOGY:**
-1. Scan the bottom portion of both labels first - this is where volume statements typically appear
-2. Compare every text element, number, symbol, and graphic element systematically
-3. Look at the same coordinate areas in both images
-4. Pay special attention to: volume statements (ml, oz), alcohol content (%), brand names, product types, mandatory statements
-5. For each change, estimate the bounding box coordinates (x, y, width, height) in pixels
-6. If you find "750 ML" in one image but not the other, that's a CRITICAL CHANGE requiring TTB submission
+**STEP 3 - VOLUME STATEMENT DETECTION:**
+Look specifically for text like "750 ML", "750ml", "700 ML", "375 ML", etc. 
+- If you see "750 ML" in the first image, check if it appears in the second image
+- If you see volume text in one image but NOT in the other, that is a CRITICAL CHANGE
+- Volume changes require TTB submission
+
+**WHAT CONSTITUTES A CHANGE:**
+- Text present in one image but missing in the other
+- Different numbers or letters
+- Different positioning of identical text
+- Different fonts or sizes
+- Any visual difference whatsoever
+
+**IMPORTANT:** 
+- Do NOT say "no changes" unless you have carefully examined every area
+- If there are obvious visual differences, you MUST find and report them
+- Start your analysis by stating what text you see in the bottom-left of each image
 
 **TTB SUBMISSION REQUIREMENTS - Key Rules:**
 - **MAJOR CHANGES (TTB Submission REQUIRED):** Changes to brand name, class/type designation, alcohol content, net contents/volume, mandatory statements, health warnings, producer/importer information, or any TTB-regulated claims
 - **MINOR CHANGES (TTB Submission RECOMMENDED):** Changes to ingredient lists, allergen statements, or optional statements that could affect compliance
 - **COSMETIC CHANGES (TTB Submission NOT REQUIRED):** Changes to colors, fonts, graphics, layout, or decorative elements that don't affect mandatory information
 
-**ANALYSIS FORMAT REQUIRED:**
+**REQUIRED OUTPUT FORMAT:**
+
+**STEP 1 REPORT - BOTTOM-LEFT AREA EXAMINATION:**
+CURRENT Image bottom-left text: [Report exactly what text you see]
+PROPOSED Image bottom-left text: [Report exactly what text you see]
+Are they identical? [YES/NO]
+
+**STEP 2 REPORT - DIFFERENCES FOUND:**
+[List every difference you detect, starting with the most obvious ones]
+
+**STEP 3 ANALYSIS:**
 
 **TTB Submission Determination:**
 *   **SUBMISSION REQUIRED:** [YES/NO/RECOMMENDED/UNCERTAIN]
 *   **Risk Level:** [HIGH/MEDIUM/LOW]
 *   **Primary Reasoning:** [Explain the main reason for the determination]
 
-**Detailed Change Analysis:**
-
 **CRITICAL CHANGES (Require TTB Submission):**
-*   [List each critical change found, if any]
-*   Change Category: [e.g., "Net Contents", "Brand Name", "Alcohol Content", "Health Warning"]
-*   CURRENT Version: [Quote exact text/content from current label]
-*   PROPOSED Version: [Quote exact text/content from proposed label]
+*   Change Category: [e.g., "Net Contents", "Brand Name", "Alcohol Content"]
+*   CURRENT Version: [Quote exact text from current label]
+*   PROPOSED Version: [Quote exact text from proposed label or "MISSING" if not present]
 *   Location: [x:123, y:456, w:78, h:90, desc:"Volume statement removed"]
 *   TTB Impact: [Explain why this requires submission]
 
 **MINOR CHANGES (May Require TTB Submission):**
-*   [List each minor change found, if any]
-*   Change Category: [e.g., "Ingredients", "Optional Statements", "Producer Information"]
-*   CURRENT Version: [Quote exact text/content from current label]
-*   PROPOSED Version: [Quote exact text/content from proposed label]
-*   Location: [x:123, y:456, w:78, h:90, desc:"Ingredient list modified"]
-*   TTB Impact: [Explain the potential compliance impact]
+*   [Same format as above]
 
 **COSMETIC CHANGES (No TTB Submission Required):**
-*   [List cosmetic changes found, if any]
-*   Change Category: [e.g., "Graphics", "Layout", "Colors", "Font Style"]
-*   Description: [Describe the cosmetic change in detail]
-*   Location: [x:123, y:456, w:78, h:90, desc:"Logo color changed"]
-*   TTB Impact: None - cosmetic only
-
-**RECOMMENDATIONS:**
-*   [Provide specific recommendations for the client]
-*   [Include any additional considerations or precautions]
-*   [Suggest timeline or process if submission is required]
+*   [Same format as above]
 
 **SUMMARY:**
 *   Total Changes Detected: [Number]
 *   Critical Changes: [Number]
-*   Minor Changes: [Number]
+*   Minor Changes: [Number] 
 *   Cosmetic Changes: [Number]
-*   **FINAL DETERMINATION:** [Clear statement of whether TTB submission is required, recommended, or not needed]
+*   **FINAL DETERMINATION:** [Clear statement]
 
 **IMPORTANT DETECTION GUIDELINES:**
 - Start by examining the bottom area of both labels where volume statements typically appear

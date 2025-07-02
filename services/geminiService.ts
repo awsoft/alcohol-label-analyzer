@@ -240,22 +240,34 @@ export const compareLabelVersionsViaService = async (
 
     const comparisonInstructions = `
 
-**LABEL CHANGE ANALYSIS:**
-BEVERAGE CATEGORY: ${comparison.beverageCategory.toUpperCase().replace('-', ' ')}
+**URGENT: LABEL CHANGE DETECTION TASK**
 
-You are comparing a CURRENT (approved) label image against a PROPOSED (new design) label image for the same product to determine TTB submission requirements.
+You have TWO DIFFERENT alcohol label images to compare. They are NOT identical.
 
-**IMAGES TO ANALYZE:**
-- CURRENT IMAGE: Shows the currently approved label design
-- PROPOSED IMAGE: Shows the new proposed label design
+**YOUR IMAGES:**
+1. CURRENT (approved) label 
+2. PROPOSED (new design) label
 
-**CRITICAL ANALYSIS REQUIREMENTS:**
-- Examine both images side-by-side with extreme care
-- Identify EVERY difference between the two images, no matter how small
-- Pay special attention to text content, numbers, volume statements, alcohol percentages
-- Note any additions, deletions, or modifications of any element
+**STEP 1 - MANDATORY AREA CHECK:**
+Look at the bottom-left corner of BOTH images (where volume is typically shown):
+- What text do you see in the bottom-left of the CURRENT image?
+- What text do you see in the bottom-left of the PROPOSED image?
+- Are they the same or different?
 
-ANALYZE THE CHANGES between current and proposed versions and determine if TTB submission is required based on the significance of changes to TTB-regulated elements.
+**STEP 2 - SYSTEMATIC COMPARISON:**
+Compare these areas in both images:
+- Bottom corners (volume info like "750 ML")
+- Top area (brand names)  
+- Center area (product descriptions)
+- Small text and numbers everywhere
+
+**CRITICAL RULE:**
+If you see "750 ML" in one image but it's missing from the other image, that is a CRITICAL CHANGE requiring TTB submission.
+
+**IMPORTANT:**
+- These images have differences - find them
+- Do not conclude "no changes" without examining every text element
+- Start by describing what you see in the bottom-left of each image
 
 `;
 
