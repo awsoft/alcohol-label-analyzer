@@ -17,7 +17,10 @@ export const GEMINI_MODEL_NAME = 'Gemini 2.5 Flash Preview';
 
 // Export function to check API key status
 export const getApiKeyStatus = (): { isConfigured: boolean; status: string } => {
-  if (!API_KEY || API_KEY === "MISSING_API_KEY") {
+  const storedApiKey = localStorage.getItem('alcohol-label-analyzer-api-key');
+  const hasApiKey = !!(storedApiKey || API_KEY);
+  
+  if (!hasApiKey) {
     return {
       isConfigured: false,
       status: "API Key not configured"
@@ -27,6 +30,32 @@ export const getApiKeyStatus = (): { isConfigured: boolean; status: string } => 
     isConfigured: true,
     status: "Gemini API configured"
   };
+};
+
+// Test API connection function
+export const testApiConnection = async (): Promise<boolean> => {
+  try {
+    // Check if there's a stored API key
+    const storedApiKey = localStorage.getItem('alcohol-label-analyzer-api-key');
+    const apiKeyToTest = storedApiKey || API_KEY;
+    
+    if (!apiKeyToTest) {
+      return false;
+    }
+    
+    const testAI = new GoogleGenAI({ apiKey: apiKeyToTest });
+    
+    // Simple test prompt
+    const response = await testAI.models.generateContent({
+      model: model,
+      contents: { parts: [{ text: 'Test connection' }] },
+    });
+    
+    return !!(response && response.text);
+  } catch (error) {
+    console.error('API connection test failed:', error);
+    return false;
+  }
 };
 
 
@@ -109,7 +138,11 @@ export const analyzeMultipleLabelsViaService = async (
   beverageCategory: BeverageCategory,
   productRequirements?: ProductRequirements
 ): Promise<string> => {
-  if (!API_KEY) {
+  // Check for stored API key first, then environment variable
+  const storedApiKey = localStorage.getItem('alcohol-label-analyzer-api-key');
+  const currentApiKey = storedApiKey || API_KEY;
+  
+  if (!currentApiKey) {
     throw new Error("Gemini API Key is not configured. Please contact support or check environment variables.");
   }
 
@@ -118,6 +151,8 @@ export const analyzeMultipleLabelsViaService = async (
   }
   
   try {
+    // Use the current API key (stored or environment)
+    const currentAI = new GoogleGenAI({ apiKey: currentApiKey });
     // Create image parts for all uploaded images
     const imageParts: Part[] = images.map((image) => ({
       inlineData: {
@@ -186,7 +221,7 @@ REMEMBER: Start each TTB Compliance Notes section with the exact status: "COMPLI
     // Combine all parts (images + text prompt)
     const allParts = [...imageParts, textPart];
 
-    const response: GenerateContentResponse = await ai.models.generateContent({
+    const response: GenerateContentResponse = await currentAI.models.generateContent({
       model: model,
       contents: { parts: allParts },
     });
@@ -213,7 +248,11 @@ REMEMBER: Start each TTB Compliance Notes section with the exact status: "COMPLI
 export const compareLabelVersionsViaService = async (
   comparison: LabelComparison
 ): Promise<string> => {
-  if (!API_KEY) {
+  // Check for stored API key first, then environment variable
+  const storedApiKey = localStorage.getItem('alcohol-label-analyzer-api-key');
+  const currentApiKey = storedApiKey || API_KEY;
+  
+  if (!currentApiKey) {
     throw new Error("Gemini API Key is not configured. Please contact support or check environment variables.");
   }
 
@@ -222,6 +261,8 @@ export const compareLabelVersionsViaService = async (
   }
   
   try {
+    // Use the current API key (stored or environment)
+    const currentAI = new GoogleGenAI({ apiKey: currentApiKey });
     // Create image parts for old images
     const oldImageParts: Part[] = comparison.oldImages.map((image) => ({
       inlineData: {
@@ -291,7 +332,7 @@ ${comparison.productRequirements.includesAspartame ? '- Product CONTAINS asparta
     // Combine all parts (old images + new images + text prompt)
     const allParts = [...oldImageParts, ...newImageParts, textPart];
 
-    const response: GenerateContentResponse = await ai.models.generateContent({
+    const response: GenerateContentResponse = await currentAI.models.generateContent({
       model: model,
       contents: { parts: allParts },
     });

@@ -10,6 +10,7 @@ import { LabelComparisonComponent } from './components/LabelComparison';
 import { analyzeMultipleLabelsViaService } from './services/geminiService';
 import { ProductRequirements, BeverageCategory, LabelImage } from './types';
 import { AlertTriangle, CheckCircle, UploadCloud, Settings, FileSearch, GitCompare } from 'lucide-react';
+import { ThemeProvider } from './contexts/ThemeContext';
 
 type AppMode = 'analysis' | 'comparison';
 
