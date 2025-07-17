@@ -10,7 +10,7 @@ if (!API_KEY) {
 }
 
 const ai = new GoogleGenAI({ apiKey: API_KEY || "MISSING_API_KEY" }); // Provide a dummy if missing to avoid constructor error
-const model = 'gemini-2.5-flash-preview-04-17';
+const model = 'gemini-2.5-flash';
 
 // Export the model name for use in settings
 export const GEMINI_MODEL_NAME = 'Gemini 2.5 Flash Preview';
