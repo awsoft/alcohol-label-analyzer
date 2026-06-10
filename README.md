@@ -47,6 +47,26 @@ The label change analysis classifies each detected difference as:
 
 If the two versions are identical, the app reports that no differences were found.
 
+## Example Labels
+
+The [`examples/`](examples) folder contains real label photos (taken on an iPhone, EXIF/GPS metadata stripped) covering all three beverage categories — use them to try any mode:
+
+| | Product | Category | Labels |
+|---|---|---|---|
+| <img src="examples/smithwicks-red-ale-front.jpg" width="90"> | **Smithwick's Red Ale** — 4.5% ALC/VOL, 11.2 FL OZ, imported (Ireland) | Malt Beverages | [front](examples/smithwicks-red-ale-front.jpg) · [back](examples/smithwicks-red-ale-back.jpg) · [neck](examples/smithwicks-red-ale-neck.jpg) |
+| <img src="examples/cooks-champagne-brut-front.jpg" width="90"> | **Cook's California Champagne Brut** — 11.5% BY VOL, 187 mL, contains sulfites | Wine | [front](examples/cooks-champagne-brut-front.jpg) · [back](examples/cooks-champagne-brut-back.jpg) |
+| <img src="examples/old-line-whiskey-front.jpg" width="90"> | **Old Line American Single Malt Whiskey** — 43% Alc./Vol. (86 Proof), 750 mL | Distilled Spirits | [front](examples/old-line-whiskey-front.jpg) · [back](examples/old-line-whiskey-back.jpg) |
+| <img src="examples/tamnavulin-scotch-front.jpg" width="90"> | **Tamnavulin Speyside Single Malt Scotch** — 40% vol, 70cl (UK-market bottling) | Distilled Spirits | [front](examples/tamnavulin-scotch-front.jpg) · [back](examples/tamnavulin-scotch-back.jpg) |
+
+**Quickest demo**: in Verify Application → Batch, add all nine images, then *Import Application CSV* with [`examples/applications.csv`](examples/applications.csv) (pre-filled with each product's application data and label types) and hit *Verify All*.
+
+A few instructive outcomes to look for (verified against the live app):
+
+- **Old Line front** → every field matches, and the Government Warning comes back *NEEDS REVIEW — "not on this label, may be present on a back or side label"* (it's on the back), exactly per 27 CFR 16.21.
+- **Old Line back** → the warning is present but gets flagged: the label prints the **entire statement in bold**, while the regulation only permits bold for "GOVERNMENT WARNING:".
+- **Tamnavulin** → a UK/EU-market bottling with no U.S. Government Warning on any label and a 70cl fill — watch how the app reports a label that was never destined for TTB approval.
+- **Smithwick's** → a compliant imported malt beverage: importer statement, country of origin, and warning all on the back label.
+
 ## Approach, Assumptions & Trade-offs
 
 **Approach.** The core agent workflow — "does the label match the application?" — is the default mode and is built for speed: a small structured-output schema on `gemini-3.1-flash-lite` returns field-level verdicts in ~2–3 seconds (benchmarked against `gemini-3.5-flash`, which gave identical verdicts at 6–12s). The deeper compliance-report and label-change modes intentionally use the larger model and take longer; they are review aids, not the high-volume path. Verdict aggregation (PASS/FAIL/NEEDS REVIEW) is computed deterministically in code from the per-field statuses rather than asked of the model. Placement rules are encoded from the actual regulations (27 CFR 16.21 warning placement; 5.63/7.63 field-of-vision rule for spirits/malt; 4.32 wine brand label), so a back label is not failed for information that belongs on the front.

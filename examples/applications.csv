@@ -1,0 +1,10 @@
+image,brand_name,class_type,alcohol_content,net_contents,bottler_name,country_of_origin,beverage_category,label_type
+smithwicks-red-ale-front.jpg,SMITHWICK'S,Red Ale,4.5% ALC/VOL,11.2 FL OZ,"Brewed by Guinness & Co., St. James's Gate, Dublin 8, Ireland; imported by Diageo Beer Company USA, New York, NY",Product of Ireland,malt-beverages,front
+smithwicks-red-ale-back.jpg,SMITHWICK'S,Red Ale,4.5% ALC/VOL,11.2 FL OZ,"Brewed by Guinness & Co., St. James's Gate, Dublin 8, Ireland; imported by Diageo Beer Company USA, New York, NY",Product of Ireland,malt-beverages,back
+smithwicks-red-ale-neck.jpg,SMITHWICK'S,Red Ale,4.5% ALC/VOL,11.2 FL OZ,"Brewed by Guinness & Co., St. James's Gate, Dublin 8, Ireland; imported by Diageo Beer Company USA, New York, NY",Product of Ireland,malt-beverages,neck
+cooks-champagne-brut-front.jpg,Cook's,California Champagne Brut,11.5% BY VOL,187 mL,"Cook's Champagne Cellars, Acampo, CA",,wine,front
+cooks-champagne-brut-back.jpg,Cook's,California Champagne Brut,11.5% BY VOL,187 mL,"Cook's Champagne Cellars, Acampo, CA",,wine,back
+old-line-whiskey-front.jpg,OLD LINE,American Single Malt Whiskey,43% Alc./Vol. (86 Proof),750 mL,"Old Line Spirits, Baltimore, MD",,distilled-spirits,front
+old-line-whiskey-back.jpg,OLD LINE,American Single Malt Whiskey,43% Alc./Vol. (86 Proof),750 mL,"Old Line Spirits, Baltimore, MD",,distilled-spirits,back
+tamnavulin-scotch-front.jpg,TAMNAVULIN,Speyside Single Malt Scotch Whisky,40% vol,70cl,"Tamnavulin Distillery, Ballindalloch, Banffshire, Scotland",Product of Scotland,distilled-spirits,front
+tamnavulin-scotch-back.jpg,TAMNAVULIN,Speyside Single Malt Scotch Whisky,40% vol,70cl,"Tamnavulin Distillery, Ballindalloch, Banffshire, Scotland",Product of Scotland,distilled-spirits,back
