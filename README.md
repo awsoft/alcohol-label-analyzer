@@ -47,6 +47,23 @@ The label change analysis classifies each detected difference as:
 
 If the two versions are identical, the app reports that no differences were found.
 
+## Approach, Assumptions & Trade-offs
+
+**Approach.** The core agent workflow — "does the label match the application?" — is the default mode and is built for speed: a small structured-output schema on `gemini-3.1-flash-lite` returns field-level verdicts in ~2–3 seconds (benchmarked against `gemini-3.5-flash`, which gave identical verdicts at 6–12s). The deeper compliance-report and label-change modes intentionally use the larger model and take longer; they are review aids, not the high-volume path. Verdict aggregation (PASS/FAIL/NEEDS REVIEW) is computed deterministically in code from the per-field statuses rather than asked of the model. Placement rules are encoded from the actual regulations (27 CFR 16.21 warning placement; 5.63/7.63 field-of-vision rule for spirits/malt; 4.32 wine brand label), so a back label is not failed for information that belongs on the front.
+
+**Assumptions.**
+- An agent verifies one label image per application at a time, choosing the label type (front/back/neck); multi-label applications are verified label-by-label.
+- The application data is typed or CSV-imported; there is no COLA system integration (explicitly out of scope per the brief).
+- Matching tolerates formatting differences a human would wave through (case, punctuation, `90 Proof` ≡ `45% Alc./Vol.`), and flags genuinely ambiguous reads as NEEDS REVIEW rather than guessing.
+
+**Trade-offs & known limitations.**
+- *Verification scope*: a single label can't prove container-level compliance (e.g. the warning may legitimately be on another label) — the tool reports NEEDS REVIEW with instructions instead of false certainty.
+- *Imperfect photos*: no active deskew/glare correction (flagged as likely out of scope in the brief); the model is tolerant of moderate quality issues and reports them in an image-quality note.
+- *Batch scale*: client-side fan-out at concurrency 4; measured 25 applications in ~12s end-to-end against production (~2 min projected for a 300-application batch). Larger batches run unattended; no server-side queue/resume.
+- *Abuse protection*: the serverless endpoints are unauthenticated for the prototype (prompts are server-built, so they are not a general-purpose AI relay); production use would add auth/rate limiting.
+- *Network posture*: agents' browsers only ever call this app's own domain — the Gemini call happens server-side — so a locked-down agency network needs exactly one domain allowlisted.
+- *Type-size rules*: physical measurements (mm type height per 27 CFR 16.22) can't be measured from a photo; legibility is assessed qualitatively.
+
 ## Architecture: where the API key lives
 
 The Gemini API key is **never** compiled into the client bundle. There are two supported ways to provide one:
