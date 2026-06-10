@@ -13,22 +13,20 @@ This guide is for developers who want to contribute to or modify the Alcohol Lab
 - npm 9.x or higher
 - Git for version control
 - Modern code editor (VS Code recommended)
+- Optional: Vercel CLI (`npm i -g vercel`) to run the serverless `/api` functions locally
 
 **Recommended VS Code Extensions**:
 - ES7+ React/Redux/React-Native snippets
-- TypeScript Hero
 - Prettier - Code formatter
-- ESLint
 - Tailwind CSS IntelliSense
 - Auto Rename Tag
-- Bracket Pair Colorizer
 
 ### Initial Setup
 
 1. **Clone the repository**:
 ```bash
 git clone <repository-url>
-cd alcohol-label-compliance-analyzer
+cd alcohol-label-analyzer
 ```
 
 2. **Install dependencies**:
@@ -36,51 +34,72 @@ cd alcohol-label-compliance-analyzer
 npm install
 ```
 
-3. **Set up environment variables**:
-```bash
-cp .env.example .env.local
-# Edit .env.local with your API keys
-```
-
-4. **Start development server**:
+3. **Start development server**:
 ```bash
 npm run dev
 ```
 
+### Providing a Gemini API Key in Development
+
+The Gemini API key is deliberately **not** bundled into the client: `vite.config.ts` has no `define` block and client code never reads `process.env`, so a `.env.local` file has no effect on the front-end build. `npm run dev` serves only the front-end — the `/api` serverless routes are not available, and server-path analysis fails with "The analysis endpoints are not available in this environment."
+
+Choose one of:
+
+- **Bring your own key (simplest)**: start `npm run dev`, open the app, and add a Gemini API key via the Settings menu (gear icon). The key is stored in `localStorage` under `alcohol-label-analyzer-api-key`, and the browser calls Gemini directly, skipping `/api` entirely.
+- **Full stack with `vercel dev`**: run `vercel dev` (requires the Vercel CLI and a linked project) with `GEMINI_API_KEY` set in the environment. This serves the front-end and the `api/` functions together, matching production behavior.
+
 ## Project Structure Deep Dive
 
 ```
-src/
-├── components/           # React components
-│   ├── Header.tsx       # App header with status
-│   ├── Footer.tsx       # App footer
-│   ├── MultiImageUploader.tsx    # Multi-image upload system
-│   ├── BeverageCategorySelector.tsx  # Category selection
-│   ├── AnalysisDisplay.tsx       # Results display
-│   ├── LoadingSpinner.tsx        # Loading indicator
-│   ├── ImageUploader.tsx         # Legacy single upload
-│   └── SettingsDropdown.tsx      # Settings panel
-├── services/            # External service integration
-│   ├── geminiService.ts # Google Gemini AI integration
-│   └── pdfService.ts    # PDF report generation
-├── types.ts            # TypeScript type definitions
-├── constants.ts        # App constants and AI prompts
-├── App.tsx            # Main application component
-├── index.tsx          # React app entry point
-└── index.html         # HTML template
+components/                       # React components
+├── Header.tsx                   # Logo, theme toggle, settings dropdown
+├── Footer.tsx                   # App footer
+├── MultiImageUploader.tsx       # Multi-image upload (New Label mode)
+├── BeverageCategorySelector.tsx # Category selection (both modes)
+├── AnalysisDisplay.tsx          # Structured analysis report display
+├── LabelComparison.tsx          # Label Change mode (uploads + compare)
+├── ComparisonResults.tsx        # Structured comparison report display
+├── LoadingSpinner.tsx           # Loading indicator
+└── SettingsDropdown.tsx         # API key management and status
 
-docs/                   # Documentation
-public/                # Static assets
-├── aardwolf-*.png     # Logo assets
-└── favicon.ico        # App icon
+services/                         # Browser-side services
+├── geminiService.ts             # Client entry points; picks BYO-key vs /api path
+├── imageProcessingService.ts    # prepareImageForAnalysis (validate/downscale)
+└── pdfService.ts                # PDF report generation (jsPDF)
+
+shared/                           # Isomorphic code (browser AND serverless)
+├── analysisTypes.ts             # Request/report contracts, compliance scoring
+└── labelAnalysis.ts             # Prompts, response schemas, Gemini runners
+
+api/                              # Vercel serverless functions
+├── _types.ts                    # Minimal handler types (not deployed)
+├── analyze.ts                   # POST /api/analyze
+├── compare.ts                   # POST /api/compare
+└── key-status.ts                # GET /api/key-status (?test=1 = live check)
+
+contexts/
+└── ThemeContext.tsx             # Single theme source ('dark' class on <html>)
+
+types.ts                          # UI types: LabelType, LabelImage, categories
+constants.ts                      # APP_VERSION only
+App.tsx                           # Main application component + mode switch
+index.tsx                         # React app entry point
+index.html                        # HTML template (no CDN scripts)
+index.css                         # Tailwind v4 entry (@import "tailwindcss")
+
+docs/                             # Documentation
+public/                           # Static assets (logos, favicon)
 
 Configuration files:
-├── package.json       # Dependencies and scripts
-├── tsconfig.json      # TypeScript configuration
-├── vite.config.ts     # Vite build configuration
-├── .gitignore         # Git ignore rules
-└── README.md          # Basic project info
+├── package.json                 # Dependencies and scripts
+├── tsconfig.json                # TypeScript configuration
+├── vite.config.ts               # Vite config (no env injection)
+└── postcss.config.js            # '@tailwindcss/postcss' only
 ```
+
+**Structure notes**:
+- Tailwind CSS v4 is configured entirely in `index.css` (`@import "tailwindcss"`, a `@custom-variant` for class-based dark mode, and a small `@theme` block). There is no `tailwind.config.js`.
+- Anything imported by both the browser and the `api/` functions must live in `shared/` and stay free of browser-only and Node-only APIs.
 
 ## Development Workflow
 
@@ -121,29 +140,13 @@ git push origin feature/your-feature-name
 
 ### Code Quality Tools
 
-**ESLint Configuration**:
-```bash
-# Run linting
-npm run lint
-
-# Fix auto-fixable issues
-npm run lint:fix
-```
-
-**Prettier Configuration**:
-```bash
-# Format code
-npm run format
-
-# Check formatting
-npm run format:check
-```
-
-**TypeScript Checking**:
+**TypeScript Checking** (the only automated check currently configured):
 ```bash
 # Type checking without build
 npx tsc --noEmit
 ```
+
+No ESLint, Prettier, or test runner is set up — `package.json` defines only `dev`, `build`, `preview`, and `install-types` scripts. If you add tooling, wire it into `package.json` scripts and document it here.
 
 ## Adding New Features
 
@@ -188,31 +191,16 @@ import { ComponentName } from './components/ComponentName';
 
 ### Extending Types
 
-**Adding New Types**:
-```typescript
-// In types.ts
-export interface NewFeatureType {
-  id: string;
-  name: string;
-  configuration: FeatureConfig;
-}
+Types live in two places:
+- **`types.ts`** — UI-side types: `LabelType`, `LabelImage`, `LABEL_TYPES`, `ProductRequirements`, `BeverageCategory`, `BEVERAGE_CATEGORIES`.
+- **`shared/analysisTypes.ts`** — request/report contracts used by both the browser and the serverless functions: `AnalyzeRequest`, `CompareRequest`, `AnalysisReport`, `ComparisonReport`, `ItemComplianceStatus`, and the `calculateComplianceScore` helper.
 
-export type ExtendedBeverageCategory = BeverageCategory | 'new-category';
-```
-
-**Updating Existing Types**:
-```typescript
-// Extend existing interfaces
-export interface ExtendedProductRequirements extends ProductRequirements {
-  newRequirement: boolean;
-}
-```
+Changing a contract in `shared/analysisTypes.ts` updates the client and the `api/` handlers together; if a report shape changes, also update the corresponding Gemini response schema in `shared/labelAnalysis.ts`.
 
 ### Adding New Beverage Categories
 
-1. **Update Types**:
+1. **Update Types** (`types.ts`):
 ```typescript
-// In types.ts
 export type BeverageCategory = 
   | 'distilled-spirits' 
   | 'wine' 
@@ -231,158 +219,54 @@ export const BEVERAGE_CATEGORIES: BeverageCategoryInfo[] = [
 ];
 ```
 
-2. **Add Prompts**:
+2. **Add the category's mandatory items** (`shared/labelAnalysis.ts`):
 ```typescript
-// In constants.ts
-const NEW_CATEGORY_REQUIREMENTS = `
-8. **New Category Specific Requirement:**
-    *   Presence & Legibility: (Description)
-    *   Statement (as shown): (Quote requirements)
-    *   TTB Compliance Notes: (Status and explanation)
-`;
-
-// Update prompt function
-export const getCategorySpecificPrompt = (category: BeverageCategory): string => {
-  let categoryRequirements = '';
-  
-  switch (category) {
-    case 'new-category':
-      categoryRequirements = NEW_CATEGORY_REQUIREMENTS;
-      break;
-    // ... existing cases
-  }
-  
-  return BASE_PROMPT + categoryRequirements + CLOSING_SECTIONS;
+const CATEGORY_ITEMS: Record<BeverageCategory, string> = {
+  // ... existing categories
+  'new-category': `
+8. "New Category Requirement" — What to check and when it applies.`,
 };
 ```
 
-### API Service Extensions
+`buildAnalysisPrompt` appends `CATEGORY_ITEMS[req.beverageCategory]` to the base mandatory items, so no other prompt changes are needed. The comparison prompt is category-agnostic apart from naming the category.
 
-**Adding New API Endpoints**:
-```typescript
-// In geminiService.ts or new service file
-export const newAnalysisFunction = async (
-  data: InputType
-): Promise<OutputType> => {
-  try {
-    // API call implementation
-    const response = await apiCall(data);
-    return processResponse(response);
-  } catch (error) {
-    console.error('API call failed:', error);
-    throw new Error(`Operation failed: ${error.message}`);
-  }
-};
-```
+### Extending the Analysis Services
+
+Analysis logic is layered so the same code serves both key paths:
+
+1. **`shared/labelAnalysis.ts`** — prompt builders, Gemini `responseSchema` definitions, and the runners `runLabelAnalysis`, `runLabelComparison`, and `testGeminiConnection`. The model is pinned via `GEMINI_MODEL = 'gemini-2.5-flash'`. Because Gemini is called with `responseMimeType: 'application/json'` and a schema, reports come back as structured JSON — no markdown parsing.
+2. **`api/*.ts`** — thin Vercel handlers that validate the request, read `GEMINI_API_KEY` from the server environment, and call the shared runner.
+3. **`services/geminiService.ts`** — browser entry points: `analyzeLabels`, `compareLabels`, `getApiKeyStatus` (async), `testApiConnection`, and `getLocalApiKey`. Each analysis call uses a locally saved key directly when present, otherwise POSTs to the corresponding `/api` route — rejecting payloads over ~4.2 MB client-side to stay under Vercel's ~4.5 MB body limit.
+
+To add a new AI-backed operation, follow the same pattern: put the prompt/schema/runner in `shared/`, add an `api/` handler, then expose a client function in `services/geminiService.ts` that branches on `getLocalApiKey()`.
 
 **Error Handling Patterns**:
+
+Raw Gemini/SDK errors are translated to user-presentable messages in one place — `translateGeminiError` in `shared/labelAnalysis.ts`:
 ```typescript
-// Consistent error handling
-try {
-  const result = await apiOperation();
-  return result;
-} catch (error: any) {
-  console.error('Operation failed:', error);
-  
-  // Specific error types
-  if (error.message?.includes('API key')) {
-    throw new Error('API key configuration error');
-  }
-  if (error.message?.includes('quota')) {
-    throw new Error('API quota exceeded');
-  }
-  
-  // Generic fallback
-  throw new Error(`Operation failed: ${error.message || 'Unknown error'}`);
+if (message.includes('API key not valid') || message.includes('API_KEY_INVALID')) {
+  return new Error('The configured Gemini API key is invalid. Please verify the key.');
+}
+if (message.includes('quota') || message.includes('RESOURCE_EXHAUSTED')) {
+  return new Error('The Gemini API quota has been exceeded. Please check usage and limits.');
 }
 ```
 
+Serverless handlers return these messages as `{ error: string }` JSON with an appropriate status code (400 invalid request, 405 wrong method, 503 no server key, 502 upstream failure), and `services/geminiService.ts` surfaces them to the UI.
+
 ## Testing
 
-### Test Structure
+There is no automated test suite configured (no test runner is installed and `package.json` has no `test` script). Until one is added, verify changes manually:
 
-**Component Tests**:
-```typescript
-// ComponentName.test.tsx
-import { render, screen, fireEvent } from '@testing-library/react';
-import { ComponentName } from './ComponentName';
+**Manual verification checklist**:
+- `npx tsc --noEmit` passes
+- `npm run build` succeeds
+- New Label mode: upload 1–5 images, set requirements and category, run an analysis, expand report items, download the PDF
+- Label Change mode: upload current + proposed images, pick a category, run a comparison — including two identical images (should show "No Differences Detected")
+- Both key paths: with a key saved in Settings (direct Gemini calls) and without one against `vercel dev` with `GEMINI_API_KEY` set (server path)
+- Error paths: files over 5 MB, server-path payloads over ~4 MB, and `npm run dev` without a key ("endpoints not available" message)
 
-describe('ComponentName', () => {
-  const defaultProps = {
-    prop1: 'test-value',
-    onAction: jest.fn()
-  };
-
-  beforeEach(() => {
-    jest.clearAllMocks();
-  });
-
-  test('renders correctly', () => {
-    render(<ComponentName {...defaultProps} />);
-    expect(screen.getByText('Expected Text')).toBeInTheDocument();
-  });
-
-  test('handles user interactions', () => {
-    render(<ComponentName {...defaultProps} />);
-    
-    fireEvent.click(screen.getByRole('button'));
-    expect(defaultProps.onAction).toHaveBeenCalled();
-  });
-
-  test('handles edge cases', () => {
-    const edgeProps = { ...defaultProps, prop1: undefined };
-    render(<ComponentName {...edgeProps} />);
-    // Test behavior with undefined props
-  });
-});
-```
-
-**Service Tests**:
-```typescript
-// geminiService.test.ts
-import { analyzeMultipleLabelsViaService } from './geminiService';
-
-// Mock external dependencies
-jest.mock('@google/genai');
-
-describe('geminiService', () => {
-  test('handles successful analysis', async () => {
-    // Mock setup
-    const mockResponse = { text: 'Mock analysis result' };
-    
-    const result = await analyzeMultipleLabelsViaService(
-      mockImages,
-      'distilled-spirits',
-      mockRequirements
-    );
-    
-    expect(result).toBe('Mock analysis result');
-  });
-
-  test('handles API errors', async () => {
-    // Mock error scenario
-    await expect(
-      analyzeMultipleLabelsViaService([], 'wine')
-    ).rejects.toThrow('No images provided');
-  });
-});
-```
-
-### Running Tests
-
-```bash
-# Run all tests
-npm test
-
-# Run with coverage
-npm run test:coverage
-
-# Run specific test file
-npm test ComponentName.test.tsx
-
-# Run tests in watch mode
-npm test -- --watch
-```
+If you introduce a test framework (e.g. Vitest), colocate tests next to the code (`shared/labelAnalysis.test.ts`) and add `test` scripts to `package.json`.
 
 ## Debugging
 
@@ -400,21 +284,11 @@ npm test -- --watch
 if (import.meta.env.DEV) {
   console.log('Debug info:', { state, props, result });
 }
-
-// Type assertions for debugging
-const debugData = data as any;
-console.log('Raw data:', debugData);
 ```
 
 **Network Debugging**:
-```typescript
-// Log API requests
-console.log('API Request:', {
-  url: endpoint,
-  data: requestData,
-  timestamp: new Date().toISOString()
-});
-```
+- Server path: watch `POST /api/analyze`, `POST /api/compare`, and `GET /api/key-status` in the browser Network tab; errors come back as `{ error: string }` JSON
+- Bring-your-own-key path: requests go directly to `generativelanguage.googleapis.com`
 
 ### Common Issues
 
@@ -425,7 +299,7 @@ rm -rf node_modules package-lock.json
 npm install
 
 # Clear Vite cache
-rm -rf .vite
+rm -rf node_modules/.vite
 npm run dev
 ```
 
@@ -434,7 +308,7 @@ npm run dev
 # Check types without building
 npx tsc --noEmit
 
-# Update type definitions
+# Update React type definitions
 npm run install-types
 ```
 
@@ -455,9 +329,6 @@ export const namedExport = value;
 # Analyze bundle size
 npm run build
 npx vite-bundle-analyzer dist
-
-# Check for large dependencies
-npm run build -- --analyze
 ```
 
 ### Code Splitting
@@ -472,29 +343,9 @@ const LazyComponent = React.lazy(() => import('./LazyComponent'));
 </Suspense>
 ```
 
-### Memory Management
+### Image Payload Size
 
-```typescript
-// Cleanup in useEffect
-useEffect(() => {
-  const subscription = subscribe();
-  
-  return () => {
-    subscription.unsubscribe();
-  };
-}, []);
-
-// Cleanup object URLs
-useEffect(() => {
-  return () => {
-    images.forEach(image => {
-      if (image.previewUrl) {
-        URL.revokeObjectURL(image.previewUrl);
-      }
-    });
-  };
-}, [images]);
-```
+Uploaded images are the dominant cost. `prepareImageForAnalysis` already enforces a 5 MB per-file cap and downscales/re-encodes anything large (longest side 2000 px, JPEG) — keep that behavior intact when touching `services/imageProcessingService.ts`, since the server path rejects request bodies over ~4.2 MB.
 
 ## Deployment
 
@@ -506,42 +357,27 @@ npm run build
 
 # Preview build locally
 npm run preview
-
-# Test production build
-npm run build && npm run preview
 ```
 
-### Environment-Specific Builds
-
-```bash
-# Development build
-VITE_ENV=development npm run build
-
-# Staging build
-VITE_ENV=staging npm run build
-
-# Production build
-VITE_ENV=production npm run build
-```
+Note: like `npm run dev`, `vite preview` serves only static files — the `/api` functions still require `vercel dev` or a real Vercel deployment. Production deployments need `GEMINI_API_KEY` set in the hosting environment for the server key path to work.
 
 ### Continuous Integration
 
 **GitHub Actions Example**:
 ```yaml
-name: CI/CD Pipeline
+name: CI
 on: [push, pull_request]
 
 jobs:
-  test:
+  build:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
       - uses: actions/setup-node@v3
         with:
-          node-version: '18'
+          node-version: '20'
       - run: npm ci
-      - run: npm run lint
-      - run: npm run test
+      - run: npx tsc --noEmit
       - run: npm run build
 ```
 
@@ -562,7 +398,6 @@ git checkout -b feature/descriptive-name
 
 3. **Make Changes**:
 - Follow code style guidelines
-- Add tests for new features
 - Update documentation
 - Ensure TypeScript compliance
 
@@ -591,11 +426,12 @@ git commit -m "feat: add descriptive commit message"
 - [ ] Components properly structured
 - [ ] Consistent naming conventions
 - [ ] Proper error handling
+- [ ] Shared code kept isomorphic (no browser/Node-only APIs in `shared/`)
 
 **Testing**:
-- [ ] Unit tests added/updated
-- [ ] Integration tests pass
-- [ ] Manual testing completed
+- [ ] `npx tsc --noEmit` and `npm run build` pass
+- [ ] Manual testing completed (both analysis modes)
+- [ ] Both key paths exercised where relevant (Settings key and server key)
 - [ ] No regression issues
 
 **Documentation**:

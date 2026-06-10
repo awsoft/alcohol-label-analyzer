@@ -7,10 +7,10 @@ import { BeverageCategorySelector } from './components/BeverageCategorySelector'
 import { AnalysisDisplay } from './components/AnalysisDisplay';
 import { LoadingSpinner } from './components/LoadingSpinner';
 import { LabelComparisonComponent } from './components/LabelComparison';
-import { analyzeMultipleLabelsViaService } from './services/geminiService';
+import { analyzeLabels, getApiKeyStatus } from './services/geminiService';
+import { AnalysisReport } from './shared/analysisTypes';
 import { ProductRequirements, BeverageCategory, LabelImage } from './types';
 import { AlertTriangle, CheckCircle, UploadCloud, Settings, FileSearch, GitCompare } from 'lucide-react';
-import { ThemeProvider } from './contexts/ThemeContext';
 
 type AppMode = 'analysis' | 'comparison';
 
@@ -18,7 +18,7 @@ const App: React.FC = () => {
   const [appMode, setAppMode] = useState<AppMode>('analysis');
   const [labelImages, setLabelImages] = useState<LabelImage[]>([]);
   
-  const [analysisResult, setAnalysisResult] = useState<string | null>(null);
+  const [analysisResult, setAnalysisResult] = useState<AnalysisReport | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [apiKeyMissing, setApiKeyMissing] = useState<boolean>(false);
@@ -34,12 +34,14 @@ const App: React.FC = () => {
   // Beverage category state - default to distilled spirits
   const [beverageCategory, setBeverageCategory] = useState<BeverageCategory>('distilled-spirits');
 
-  useEffect(() => {
-    if (!process.env.API_KEY) {
-      setApiKeyMissing(true);
-      setError("Gemini API Key is missing. Please ensure it's set in your environment variables.");
-    }
+  // A key can come from the server (/api endpoints) or from localStorage (set via Settings)
+  const refreshApiKeyStatus = useCallback(() => {
+    getApiKeyStatus().then(({ isConfigured }) => setApiKeyMissing(!isConfigured));
   }, []);
+
+  useEffect(() => {
+    refreshApiKeyStatus();
+  }, [refreshApiKeyStatus]);
 
   const handleImagesChange = useCallback((newImages: LabelImage[]) => {
     setLabelImages(newImages);
@@ -63,7 +65,11 @@ const App: React.FC = () => {
     setAnalysisResult(null);
 
     try {
-      const result = await analyzeMultipleLabelsViaService(labelImages, beverageCategory, productRequirements);
+      const result = await analyzeLabels({
+        images: labelImages.map(({ base64, mimeType, labelType }) => ({ base64, mimeType, labelType })),
+        beverageCategory,
+        productRequirements,
+      });
       setAnalysisResult(result);
       setHasAnalyzed(true);
     } catch (e: any) {
@@ -189,25 +195,17 @@ const App: React.FC = () => {
 
   return (
     <div className="flex flex-col min-h-screen bg-gradient-to-br from-slate-50 via-slate-100 to-sky-50 dark:from-slate-900 dark:via-slate-800 dark:to-sky-900 text-slate-800 dark:text-slate-100 transition-colors duration-300">
-      <Header 
-        analysisStatus={
-          isLoading 
-            ? "Processing..." 
-            : hasAnalyzed 
-              ? (error ? "Analysis failed" : "Analysis completed")
-              : "Ready"
-        }
-      />
+      <Header onApiKeyChange={refreshApiKeyStatus} />
       <main className="flex-grow container mx-auto px-4 py-8">
         <div className="bg-white dark:bg-slate-800 shadow-2xl rounded-xl p-6 md:p-10 transition-colors duration-300">
           {/* Mode Selector */}
           <ModeSelector />
 
-          {apiKeyMissing && !currentError?.includes("API Key") && (
+          {apiKeyMissing && (
             <div className="mb-6 p-4 bg-red-700 border border-red-500 rounded-lg flex items-center space-x-3">
               <AlertTriangle className="h-6 w-6 text-red-300" />
               <p className="text-red-200">
-                <strong>Configuration Error:</strong> The Gemini API Key (API_KEY) is not configured. This application cannot function without it.
+                <strong>Configuration Error:</strong> No Gemini API key is configured. Add one via the Settings menu (gear icon in the header), or set GEMINI_API_KEY in your environment.
               </p>
             </div>
           )}
@@ -279,7 +277,7 @@ const App: React.FC = () => {
                       </p>
                     </div>
                   )}
-                  {analysisResult && !currentError && <AnalysisDisplay result={analysisResult} productRequirements={productRequirements} />}
+                  {analysisResult && !currentError && <AnalysisDisplay report={analysisResult} />}
                 </div>
               </div>
             </>

@@ -1,8 +1,11 @@
 import React, { useState, useCallback } from 'react';
 import { LoadingSpinner } from './LoadingSpinner';
 import { ComparisonResults } from './ComparisonResults';
-import { compareLabelVersionsViaService } from '../services/geminiService';
-import { LabelImage, BeverageCategory, ProductRequirements, LabelComparison } from '../types';
+import { BeverageCategorySelector } from './BeverageCategorySelector';
+import { compareLabels } from '../services/geminiService';
+import { prepareImageForAnalysis } from '../services/imageProcessingService';
+import { ComparisonReport } from '../shared/analysisTypes';
+import { LabelImage, BeverageCategory } from '../types';
 import { AlertTriangle, ArrowRight, GitCompare, Upload, X } from 'lucide-react';
 
 interface LabelComparisonProps {
@@ -12,31 +15,22 @@ interface LabelComparisonProps {
 export const LabelComparisonComponent: React.FC<LabelComparisonProps> = ({ disabled = false }) => {
   const [currentImage, setCurrentImage] = useState<LabelImage | null>(null);
   const [proposedImage, setProposedImage] = useState<LabelImage | null>(null);
-  
-  const [comparisonResult, setComparisonResult] = useState<string | null>(null);
+  const [beverageCategory, setBeverageCategory] = useState<BeverageCategory>('distilled-spirits');
+
+  const [comparisonReport, setComparisonReport] = useState<ComparisonReport | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Helper function to convert file to LabelImage
   const fileToLabelImage = async (file: File): Promise<LabelImage> => {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        const base64 = e.target?.result as string;
-        const base64Data = base64.split(',')[1]; // Remove data:image/...;base64, prefix
-        
-        resolve({
-          id: Math.random().toString(36).substr(2, 9),
-          file,
-          labelType: 'other', // Default type for simple comparison
-          base64: base64Data,
-          mimeType: file.type,
-          previewUrl: base64,
-        });
-      };
-      reader.onerror = reject;
-      reader.readAsDataURL(file);
-    });
+    const prepared = await prepareImageForAnalysis(file);
+    return {
+      id: Math.random().toString(36).substring(2, 11),
+      file,
+      labelType: 'other', // Label position is irrelevant for version comparison
+      base64: prepared.base64,
+      mimeType: prepared.mimeType,
+      previewUrl: prepared.previewUrl,
+    };
   };
 
   const handleCurrentImageUpload = useCallback(async (file: File) => {
@@ -44,9 +38,9 @@ export const LabelComparisonComponent: React.FC<LabelComparisonProps> = ({ disab
       const labelImage = await fileToLabelImage(file);
       setCurrentImage(labelImage);
       setError(null);
-      setComparisonResult(null);
-    } catch (error) {
-      setError('Failed to process the current image');
+      setComparisonReport(null);
+    } catch (e: any) {
+      setError(e?.message || 'Failed to process the current image');
     }
   }, []);
 
@@ -55,9 +49,9 @@ export const LabelComparisonComponent: React.FC<LabelComparisonProps> = ({ disab
       const labelImage = await fileToLabelImage(file);
       setProposedImage(labelImage);
       setError(null);
-      setComparisonResult(null);
-    } catch (error) {
-      setError('Failed to process the proposed image');
+      setComparisonReport(null);
+    } catch (e: any) {
+      setError(e?.message || 'Failed to process the proposed image');
     }
   }, []);
 
@@ -69,22 +63,15 @@ export const LabelComparisonComponent: React.FC<LabelComparisonProps> = ({ disab
 
     setIsLoading(true);
     setError(null);
-    setComparisonResult(null);
+    setComparisonReport(null);
 
     try {
-      const comparison: LabelComparison = {
-        oldImages: [currentImage],
-        newImages: [proposedImage],
-        beverageCategory: 'distilled-spirits', // Default category for comparison
-        productRequirements: { // Default empty requirements for comparison
-          includesSulfites: false,
-          includesYellowNumberFive: false,
-          includesAspartame: false,
-        }
-      };
-
-      const result = await compareLabelVersionsViaService(comparison);
-      setComparisonResult(result);
+      const report = await compareLabels({
+        currentImages: [{ base64: currentImage.base64, mimeType: currentImage.mimeType }],
+        proposedImages: [{ base64: proposedImage.base64, mimeType: proposedImage.mimeType }],
+        beverageCategory,
+      });
+      setComparisonReport(report);
     } catch (e: any) {
       console.error("Comparison failed:", e);
       let errorMessage = "An error occurred during comparison.";
@@ -140,7 +127,7 @@ export const LabelComparisonComponent: React.FC<LabelComparisonProps> = ({ disab
             {badge}
           </span>
         </div>
-        
+
         {image ? (
           <div className="relative bg-white dark:bg-slate-700 rounded-lg border border-slate-200 dark:border-slate-600 p-4">
             <button
@@ -163,8 +150,8 @@ export const LabelComparisonComponent: React.FC<LabelComparisonProps> = ({ disab
             onDrop={handleDrop}
             onDragOver={handleDragOver}
             className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors ${
-              disabled 
-                ? 'border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-700/50 cursor-not-allowed' 
+              disabled
+                ? 'border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-700/50 cursor-not-allowed'
                 : 'border-slate-300 dark:border-slate-600 hover:border-sky-400 dark:hover:border-sky-500 bg-slate-50 dark:bg-slate-700/50 cursor-pointer'
             }`}
           >
@@ -183,8 +170,8 @@ export const LabelComparisonComponent: React.FC<LabelComparisonProps> = ({ disab
             <label
               htmlFor={`file-input-${title.replace(' ', '-').toLowerCase()}`}
               className={`inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white ${
-                disabled 
-                  ? 'bg-slate-400 cursor-not-allowed' 
+                disabled
+                  ? 'bg-slate-400 cursor-not-allowed'
                   : 'bg-sky-600 hover:bg-sky-700 cursor-pointer'
               } transition-colors`}
             >
@@ -243,6 +230,15 @@ export const LabelComparisonComponent: React.FC<LabelComparisonProps> = ({ disab
         </div>
       </div>
 
+      {/* Beverage Category */}
+      <div className="max-w-5xl mx-auto">
+        <BeverageCategorySelector
+          selectedCategory={beverageCategory}
+          onCategoryChange={setBeverageCategory}
+          disabled={isLoading || disabled}
+        />
+      </div>
+
       {/* Compare Button */}
       <div className="max-w-md mx-auto">
         <button
@@ -252,7 +248,7 @@ export const LabelComparisonComponent: React.FC<LabelComparisonProps> = ({ disab
         >
           {isLoading ? <LoadingSpinner /> : <GitCompare className="h-5 w-5" />}
           <span>
-            {isLoading ? 'Analyzing Changes...' : 
+            {isLoading ? 'Analyzing Changes...' :
              !currentImage || !proposedImage ? 'Upload Both Images to Compare' :
              'Analyze Label Changes'}
           </span>
@@ -270,15 +266,15 @@ export const LabelComparisonComponent: React.FC<LabelComparisonProps> = ({ disab
             </div>
           </div>
         )}
-        
-        {isLoading && !comparisonResult && !error && (
+
+        {isLoading && !comparisonReport && !error && (
           <div className="p-6 bg-slate-100 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg flex items-center justify-center min-h-[200px] transition-colors duration-300">
             <LoadingSpinner />
             <p className="ml-3 text-slate-700 dark:text-slate-300">AI is analyzing the changes between your label versions... please wait.</p>
           </div>
         )}
-        
-        {!isLoading && !comparisonResult && !error && (
+
+        {!isLoading && !comparisonReport && !error && (
           <div className="p-10 bg-slate-50 dark:bg-slate-700/50 border-2 border-dashed border-slate-300 dark:border-slate-600 rounded-lg flex flex-col items-center justify-center min-h-[200px] text-center transition-colors duration-300">
             <GitCompare className="h-12 w-12 text-sky-500 mb-4" />
             <h3 className="text-xl font-semibold text-slate-700 dark:text-slate-300">Ready for Label Change Analysis</h3>
@@ -287,15 +283,11 @@ export const LabelComparisonComponent: React.FC<LabelComparisonProps> = ({ disab
             </p>
           </div>
         )}
-        
-        {comparisonResult && !error && currentImage && proposedImage && (
-          <ComparisonResults
-            result={comparisonResult}
-            currentImageUrl={currentImage.previewUrl}
-            proposedImageUrl={proposedImage.previewUrl}
-          />
+
+        {comparisonReport && !error && (
+          <ComparisonResults report={comparisonReport} />
         )}
       </div>
     </div>
   );
-}; 
+};

@@ -5,7 +5,7 @@
 Before installing the Alcohol Label Compliance Analyzer, ensure you have the following prerequisites:
 
 ### System Requirements
-- **Node.js**: Version 18.x or higher
+- **Node.js**: Version 20.x or higher (required by the `@google/genai` SDK)
 - **npm**: Version 9.x or higher (comes with Node.js)
 - **Operating System**: Windows 10+, macOS 10.15+, or Linux (Ubuntu 20.04+ recommended)
 - **Browser**: Modern browser with JavaScript enabled (Chrome 90+, Firefox 88+, Safari 14+, Edge 90+)
@@ -16,6 +16,8 @@ Before installing the Alcohol Label Compliance Analyzer, ensure you have the fol
   - Generate an API key for Gemini models
   - Ensure you have sufficient quota for image analysis
 
+The key is **not** baked into the build. You provide it at runtime in one of two ways (see step 3): paste it into the in-app Settings menu, or set `GEMINI_API_KEY` in the server environment for the serverless functions.
+
 ## Installation Steps
 
 ### 1. Clone or Download the Repository
@@ -23,7 +25,7 @@ Before installing the Alcohol Label Compliance Analyzer, ensure you have the fol
 If you have access to the source code repository:
 ```bash
 git clone <repository-url>
-cd alcohol-label-compliance-analyzer
+cd alcohol-label-analyzer
 ```
 
 ### 2. Install Dependencies
@@ -36,26 +38,36 @@ npm install
 This will install the following key dependencies:
 - React 19 and React DOM
 - TypeScript and type definitions
-- Vite build tool
-- Google Generative AI SDK
+- Vite 6 build tool
+- Tailwind CSS v4 (with the `@tailwindcss/postcss` plugin)
+- Google Gen AI SDK (`@google/genai`)
 - jsPDF for report generation
 - Lucide React for icons
 - Vercel Analytics
 
-### 3. Environment Configuration
+### 3. Provide a Gemini API Key
 
-Create a `.env.local` file in the root directory of the project:
+There is no `.env.local` step for local development — `npm run dev` serves only the front-end, and the Vite build never reads or embeds an API key. Choose one of these options:
 
+**Option A — In-app key (simplest):**
+1. Start the dev server (step 4)
+2. Click the Settings gear icon in the header
+3. Click "Add API Key" and paste your Gemini key
+
+The key is stored in your browser's `localStorage` and used to call Gemini directly from the browser.
+
+**Option B — Run the serverless functions locally:**
+
+The `/api` routes (which hold the key server-side) only run under Vercel's dev server:
 ```bash
-# Required: Google Gemini API Key
-API_KEY=your_gemini_api_key_here
-
-# Optional: Additional configuration
-VITE_APP_VERSION=1.2.0
+npm install -g vercel
+vercel link          # link the directory to a Vercel project
+vercel dev           # serves the front-end and the /api functions together
 ```
+`GEMINI_API_KEY` must be available in the environment — export it in your shell, or add it to the linked project's Development environment and pull it with `vercel env pull`.
 
 **Important Security Notes:**
-- Never commit your `.env.local` file to version control
+- Never commit API keys to version control
 - Keep your API key secure and rotate it regularly
 - Use environment-specific API keys for development vs. production
 
@@ -68,9 +80,11 @@ npm run dev
 
 The application should be available at `http://localhost:5173`. You should see:
 - The main interface loads without errors
-- The header shows "Ready" status
+- The Settings menu (gear icon) opens and shows the API key status
 - You can access the image upload area
-- No API key errors appear (if properly configured)
+- After adding a key in Settings, the "Test Connection" button reports "Connected"
+
+Note: under plain `npm run dev` the `/api` routes are unavailable, so the status reads "Not configured" until you add your own key via Settings (or switch to `vercel dev`).
 
 ### 5. Build for Production (Optional)
 
@@ -79,37 +93,37 @@ To create a production build:
 npm run build
 ```
 
-This creates a `dist/` folder with optimized static files ready for deployment.
+This creates a `dist/` folder with optimized static files ready for deployment. No API key is needed at build time, and none ends up in the bundle.
 
 ## Configuration Options
 
 ### Environment Variables
 
-| Variable | Required | Description | Default |
-|----------|----------|-------------|---------|
-| `API_KEY` | Yes | Google Gemini API key for AI analysis | None |
-| `VITE_APP_VERSION` | No | Application version displayed in UI | From package.json |
+| Variable | Required | Description | Where it is read |
+|----------|----------|-------------|------------------|
+| `GEMINI_API_KEY` | Only for the server-key path | Google Gemini API key used by the serverless functions in `api/` | Server runtime only (`process.env`) — never the client build |
+
+The client build uses no environment variables (there are no `VITE_`-prefixed variables). The app version shown in the UI comes from `APP_VERSION` in `constants.ts`.
 
 ### Build Configuration
 
 The application uses Vite for building. Configuration is in `vite.config.ts`:
 
 ```typescript
-import { defineConfig } from 'vite'
+import path from 'path';
+import { defineConfig } from 'vite';
 
+// NOTE: the Gemini API key is deliberately NOT injected into the client
+// bundle. Server-side calls go through the Vercel functions in /api, which
+// read GEMINI_API_KEY from the server environment. Users can alternatively
+// provide their own key at runtime via the in-app Settings menu.
 export default defineConfig({
-  // Build configuration
-  build: {
-    outDir: 'dist',
-    sourcemap: true,
-    minify: 'terser'
+  resolve: {
+    alias: {
+      '@': path.resolve(__dirname, '.'),
+    },
   },
-  // Development server configuration
-  server: {
-    port: 5173,
-    host: true
-  }
-})
+});
 ```
 
 ## Development Environment Setup
@@ -132,23 +146,16 @@ The project uses TypeScript with strict type checking. Configuration is in `tsco
 {
   "compilerOptions": {
     "target": "ES2020",
-    "useDefineForClassFields": true,
-    "lib": ["ES2020", "DOM", "DOM.Iterable"],
     "module": "ESNext",
-    "skipLibCheck": true,
+    "lib": ["ES2020", "DOM", "DOM.Iterable"],
     "moduleResolution": "bundler",
-    "allowImportingTsExtensions": true,
-    "isolatedModules": true,
-    "moduleDetection": "force",
     "noEmit": true,
     "jsx": "react-jsx",
     "strict": true,
     "noUnusedLocals": true,
     "noUnusedParameters": true,
-    "noFallthroughCasesInSwitch": true,
-    "noUncheckedSideEffectImports": true
-  },
-  "include": ["src"]
+    "paths": { "@/*": ["./*"] }
+  }
 }
 ```
 
@@ -156,7 +163,7 @@ The project uses TypeScript with strict type checking. Configuration is in `tsco
 
 | Script | Purpose | Usage |
 |--------|---------|-------|
-| `dev` | Start development server | `npm run dev` |
+| `dev` | Start development server (front-end only) | `npm run dev` |
 | `build` | Create production build | `npm run build` |
 | `preview` | Preview production build | `npm run preview` |
 | `install-types` | Install React type definitions | `npm run install-types` |
@@ -167,10 +174,10 @@ The project uses TypeScript with strict type checking. Configuration is in `tsco
 
 **1. Node.js Version Compatibility**
 ```bash
-# Check Node.js version
+# Check Node.js version (20.x or higher required)
 node --version
 
-# If outdated, install latest LTS version
+# If outdated, install the latest LTS version
 # Visit https://nodejs.org/
 ```
 
@@ -185,10 +192,10 @@ npm install
 ```
 
 **3. API Key Issues**
-- Verify your Gemini API key is valid
-- Check that the key has sufficient quota
-- Ensure the `.env.local` file is in the root directory
-- Restart the development server after adding environment variables
+- "The analysis endpoints are not available in this environment": you are running plain `npm run dev` (or `npm run preview`), which has no `/api` routes — add your own key via the Settings menu, or run `vercel dev`
+- "The configured Gemini API key is invalid": verify the key in Google AI Studio
+- Quota errors: check usage and limits on your Google account
+- Under `vercel dev`, make sure `GEMINI_API_KEY` is set in the environment and restart the server after changing it
 
 **4. Port Conflicts**
 If port 5173 is in use:
@@ -212,7 +219,7 @@ If you encounter issues not covered here:
 1. Check the [Troubleshooting Guide](./troubleshooting.md)
 2. Review the browser console for error messages
 3. Verify all prerequisites are met
-4. Check that environment variables are properly set
+4. Check the API key status in the Settings menu
 
 ## Next Steps
 

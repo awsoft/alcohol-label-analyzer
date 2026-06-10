@@ -1,190 +1,63 @@
-import React, { useEffect, useState } from 'react';
-import { AlertTriangle, CheckCircle, FileText, MapPin } from 'lucide-react';
-import { ImageProcessingService, ChangeHighlight } from '../services/imageProcessingService';
+import React from 'react';
+import { AlertTriangle, CheckCircle, FileText, HelpCircle, MapPin } from 'lucide-react';
+import { ComparisonReport, ComparisonChange, SubmissionRequirement } from '../shared/analysisTypes';
 
 interface ComparisonResultsProps {
-  result: string;
-  currentImageUrl: string;
-  proposedImageUrl: string;
+  report: ComparisonReport;
 }
 
-interface ParsedResult {
-  submissionRequired: string;
-  riskLevel: string;
-  reasoning: string;
-  criticalChanges: ChangeAnalysis[];
-  minorChanges: ChangeAnalysis[];
-  cosmeticChanges: ChangeAnalysis[];
-  recommendations: string[];
-  summary: {
-    total: number;
-    critical: number;
-    minor: number;
-    cosmetic: number;
-  };
-  finalDetermination: string;
-}
+const SUBMISSION_DISPLAY: Record<SubmissionRequirement, { label: string; color: string; Icon: React.ElementType }> = {
+  'required': { label: 'Submission Required', color: 'text-red-600 dark:text-red-400', Icon: AlertTriangle },
+  'recommended': { label: 'Submission Recommended', color: 'text-yellow-600 dark:text-yellow-400', Icon: AlertTriangle },
+  'not-required': { label: 'No Submission Required', color: 'text-green-600 dark:text-green-400', Icon: CheckCircle },
+  'uncertain': { label: 'Uncertain — Verify with TTB', color: 'text-slate-600 dark:text-slate-400', Icon: HelpCircle },
+};
 
-interface ChangeAnalysis {
-  category: string;
-  currentVersion: string;
-  proposedVersion: string;
-  location: ChangeHighlight | null;
-  impact: string;
-  description?: string;
-}
+const RISK_BADGE: Record<string, string> = {
+  high: 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300',
+  medium: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300',
+  low: 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300',
+};
 
-export const ComparisonResults: React.FC<ComparisonResultsProps> = ({
-  result,
-  currentImageUrl,
-  proposedImageUrl
-}) => {
-  const [parsedResult, setParsedResult] = useState<ParsedResult | null>(null);
-  const [highlightedImage, setHighlightedImage] = useState<string | null>(null);
-  const [allChanges, setAllChanges] = useState<ChangeHighlight[]>([]);
-
-  useEffect(() => {
-    const parseResults = () => {
-      try {
-        // Parse the AI response
-        const parsed = parseAIResponse(result);
-        setParsedResult(parsed);
-
-        // Extract all change locations
-        const changes = ImageProcessingService.parseChangeLocations(result);
-        setAllChanges(changes);
-
-        // Create highlighted comparison image
-        if (changes.length > 0) {
-          ImageProcessingService.createComparisonImage(
-            currentImageUrl,
-            proposedImageUrl,
-            changes
-          ).then(setHighlightedImage).catch(console.error);
-        }
-      } catch (error) {
-        console.error('Failed to parse results:', error);
-      }
-    };
-
-    parseResults();
-  }, [result, currentImageUrl, proposedImageUrl]);
-
-  const parseAIResponse = (response: string): ParsedResult => {
-    const lines = response.split('\n');
-    
-    // Extract submission determination
-    const submissionMatch = response.match(/\*\*SUBMISSION REQUIRED:\*\*\s*(.+)/);
-    const riskMatch = response.match(/\*\*Risk Level:\*\*\s*(.+)/);
-    const reasoningMatch = response.match(/\*\*Primary Reasoning:\*\*\s*(.+)/);
-    
-    // Extract summary
-    const totalMatch = response.match(/Total Changes Detected:\s*(\d+)/);
-    const criticalMatch = response.match(/Critical Changes:\s*(\d+)/);
-    const minorMatch = response.match(/Minor Changes:\s*(\d+)/);
-    const cosmeticMatch = response.match(/Cosmetic Changes:\s*(\d+)/);
-    
-    // Extract final determination
-    const finalMatch = response.match(/\*\*FINAL DETERMINATION:\*\*\s*(.+)/);
-    
-    // Extract recommendations
-    const recSection = response.match(/\*\*RECOMMENDATIONS:\*\*(.*?)(?=\*\*SUMMARY:\*\*)/s);
-    const recommendations = recSection ? 
-      recSection[1].split('\n').filter(line => line.trim().startsWith('*')).map(line => line.replace(/^\*\s*/, '').trim()) : 
-      [];
-
-    return {
-      submissionRequired: submissionMatch?.[1]?.trim() || 'Unknown',
-      riskLevel: riskMatch?.[1]?.trim() || 'Unknown',
-      reasoning: reasoningMatch?.[1]?.trim() || 'No reasoning provided',
-      criticalChanges: parseChanges(response, 'CRITICAL CHANGES'),
-      minorChanges: parseChanges(response, 'MINOR CHANGES'),
-      cosmeticChanges: parseChanges(response, 'COSMETIC CHANGES'),
-      recommendations,
-      summary: {
-        total: parseInt(totalMatch?.[1] || '0'),
-        critical: parseInt(criticalMatch?.[1] || '0'),
-        minor: parseInt(minorMatch?.[1] || '0'),
-        cosmetic: parseInt(cosmeticMatch?.[1] || '0')
-      },
-      finalDetermination: finalMatch?.[1]?.trim() || 'No determination provided'
-    };
-  };
-
-  const parseChanges = (response: string, sectionType: string): ChangeAnalysis[] => {
-    const changes: ChangeAnalysis[] = [];
-    const sectionRegex = new RegExp(`\\*\\*${sectionType}.*?\\*\\*:(.*?)(?=\\*\\*[A-Z]|$)`, 's');
-    const sectionMatch = response.match(sectionRegex);
-    
-    if (sectionMatch) {
-      const content = sectionMatch[1];
-      const locationPattern = /\[x:(\d+),\s*y:(\d+),\s*w:(\d+),\s*h:(\d+),\s*desc:"([^"]+)"\]/g;
-      let match;
-      
-      while ((match = locationPattern.exec(content)) !== null) {
-        changes.push({
-          category: match[5] || 'Unknown',
-          currentVersion: 'Extracted from AI response',
-          proposedVersion: 'Extracted from AI response',
-          location: {
-            x: parseInt(match[1]),
-            y: parseInt(match[2]),
-            width: parseInt(match[3]),
-            height: parseInt(match[4]),
-            description: match[5]
-          },
-          impact: 'Extracted from AI response'
-        });
-      }
-    }
-    
-    return changes;
-  };
-
-  const getStatusColor = (submissionRequired: string) => {
-    const lower = submissionRequired.toLowerCase();
-    if (lower.includes('yes') || lower.includes('required')) {
-      return 'text-red-600 dark:text-red-400';
-    } else if (lower.includes('no') || lower.includes('not required')) {
-      return 'text-green-600 dark:text-green-400';
-    } else if (lower.includes('recommended')) {
-      return 'text-yellow-600 dark:text-yellow-400';
-    }
-    return 'text-slate-600 dark:text-slate-400';
-  };
-
-  const getStatusIcon = (submissionRequired: string) => {
-    const lower = submissionRequired.toLowerCase();
-    if (lower.includes('yes') || lower.includes('required')) {
-      return <AlertTriangle className="h-5 w-5" />;
-    } else if (lower.includes('no') || lower.includes('not required')) {
-      return <CheckCircle className="h-5 w-5" />;
-    } else if (lower.includes('recommended')) {
-      return <AlertTriangle className="h-5 w-5" />;
-    }
-    return <FileText className="h-5 w-5" />;
-  };
-
-  const getRiskBadgeColor = (riskLevel: string) => {
-    const lower = riskLevel.toLowerCase();
-    if (lower.includes('high')) return 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300';
-    if (lower.includes('medium')) return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300';
-    if (lower.includes('low')) return 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300';
-    return 'bg-slate-100 text-slate-800 dark:bg-slate-700 dark:text-slate-300';
-  };
-
-  if (!parsedResult) {
-    return (
-      <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-600 rounded-lg overflow-hidden">
-        <div className="p-6">
-          <div className="animate-pulse">
-            <div className="h-4 bg-slate-200 dark:bg-slate-600 rounded w-3/4 mb-4"></div>
-            <div className="h-4 bg-slate-200 dark:bg-slate-600 rounded w-1/2"></div>
+const ChangeGroup: React.FC<{
+  title: string;
+  changes: ComparisonChange[];
+  headingColor: string;
+  borderColor: string;
+  iconColor: string;
+}> = ({ title, changes, headingColor, borderColor, iconColor }) => {
+  if (changes.length === 0) return null;
+  return (
+    <div>
+      <h5 className={`${headingColor} font-semibold mb-3`}>{title}</h5>
+      {changes.map((change, index) => (
+        <div key={index} className={`border-l-4 ${borderColor} pl-4 mb-4`}>
+          <div className="flex items-center mb-1">
+            <MapPin className={`h-4 w-4 ${iconColor} mr-2 flex-shrink-0`} />
+            <span className="font-medium text-slate-800 dark:text-slate-200">
+              {change.category}
+              {change.location && <span className="font-normal text-slate-500 dark:text-slate-400"> — {change.location}</span>}
+            </span>
           </div>
+          <div className="text-sm text-slate-700 dark:text-slate-300 grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1 mb-1">
+            <div><span className="font-medium text-slate-500 dark:text-slate-400">Current:</span> {change.currentValue}</div>
+            <div><span className="font-medium text-slate-500 dark:text-slate-400">Proposed:</span> {change.proposedValue}</div>
+          </div>
+          <p className="text-sm text-slate-600 dark:text-slate-400">{change.impact}</p>
         </div>
-      </div>
-    );
-  }
+      ))}
+    </div>
+  );
+};
+
+export const ComparisonResults: React.FC<ComparisonResultsProps> = ({ report }) => {
+  const criticalChanges = report.changes.filter(c => c.significance === 'critical');
+  const minorChanges = report.changes.filter(c => c.significance === 'minor');
+  const cosmeticChanges = report.changes.filter(c => c.significance === 'cosmetic');
+
+  const submission = SUBMISSION_DISPLAY[report.submissionRequired] ?? SUBMISSION_DISPLAY['uncertain'];
+  const riskBadge = RISK_BADGE[report.riskLevel] ?? 'bg-slate-100 text-slate-800 dark:bg-slate-700 dark:text-slate-300';
+  const noChanges = report.identical || report.changes.length === 0;
 
   return (
     <div className="space-y-6">
@@ -193,24 +66,24 @@ export const ComparisonResults: React.FC<ComparisonResultsProps> = ({
         <div className="p-6 border-b border-slate-200 dark:border-slate-600">
           <div className="flex items-center justify-between">
             <div className="flex items-center">
-              <div className={`mr-3 ${getStatusColor(parsedResult.submissionRequired)}`}>
-                {getStatusIcon(parsedResult.submissionRequired)}
+              <div className={`mr-3 ${submission.color}`}>
+                <submission.Icon className="h-5 w-5" />
               </div>
               <div>
                 <h3 className="text-xl font-semibold text-slate-800 dark:text-slate-200">
                   TTB Submission Analysis
                 </h3>
                 <p className="text-sm text-slate-600 dark:text-slate-400">
-                  {parsedResult.reasoning}
+                  {report.reasoning}
                 </p>
               </div>
             </div>
-            <div className="text-right">
-              <div className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${getRiskBadgeColor(parsedResult.riskLevel)}`}>
-                {parsedResult.riskLevel} Risk
+            <div className="text-right flex-shrink-0 ml-4">
+              <div className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium capitalize ${riskBadge}`}>
+                {report.riskLevel} Risk
               </div>
-              <div className={`mt-2 text-lg font-semibold ${getStatusColor(parsedResult.submissionRequired)}`}>
-                {parsedResult.submissionRequired}
+              <div className={`mt-2 text-lg font-semibold ${submission.color}`}>
+                {submission.label}
               </div>
             </div>
           </div>
@@ -220,105 +93,78 @@ export const ComparisonResults: React.FC<ComparisonResultsProps> = ({
         <div className="p-6 bg-slate-50 dark:bg-slate-700/50">
           <div className="grid grid-cols-4 gap-4 text-center">
             <div>
-              <div className="text-2xl font-bold text-slate-800 dark:text-slate-200">{parsedResult.summary.total}</div>
+              <div className="text-2xl font-bold text-slate-800 dark:text-slate-200">{report.changes.length}</div>
               <div className="text-sm text-slate-600 dark:text-slate-400">Total Changes</div>
             </div>
             <div>
-              <div className="text-2xl font-bold text-red-600 dark:text-red-400">{parsedResult.summary.critical}</div>
+              <div className="text-2xl font-bold text-red-600 dark:text-red-400">{criticalChanges.length}</div>
               <div className="text-sm text-slate-600 dark:text-slate-400">Critical</div>
             </div>
             <div>
-              <div className="text-2xl font-bold text-yellow-600 dark:text-yellow-400">{parsedResult.summary.minor}</div>
+              <div className="text-2xl font-bold text-yellow-600 dark:text-yellow-400">{minorChanges.length}</div>
               <div className="text-sm text-slate-600 dark:text-slate-400">Minor</div>
             </div>
             <div>
-              <div className="text-2xl font-bold text-green-600 dark:text-green-400">{parsedResult.summary.cosmetic}</div>
+              <div className="text-2xl font-bold text-green-600 dark:text-green-400">{cosmeticChanges.length}</div>
               <div className="text-sm text-slate-600 dark:text-slate-400">Cosmetic</div>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Highlighted Comparison Image */}
-      {highlightedImage && (
-        <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-600 rounded-lg overflow-hidden">
-          <div className="p-6 border-b border-slate-200 dark:border-slate-600">
-            <h4 className="text-lg font-semibold text-slate-800 dark:text-slate-200">
-              Visual Change Detection
-            </h4>
-            <p className="text-sm text-slate-600 dark:text-slate-400">
-              Changes are highlighted with red boxes for easy identification
+      {/* No differences found */}
+      {noChanges && (
+        <div className="bg-green-50 dark:bg-green-900/20 border border-green-300 dark:border-green-700 rounded-lg p-6 flex items-start space-x-3">
+          <CheckCircle className="h-6 w-6 text-green-600 dark:text-green-400 mt-0.5 flex-shrink-0" />
+          <div>
+            <h4 className="font-semibold text-green-800 dark:text-green-300">No Differences Detected</h4>
+            <p className="text-sm text-green-700 dark:text-green-400 mt-1">
+              The AI could not verify any differences between the two label versions. If you expected changes,
+              make sure both uploads are correct and legible, then run the comparison again.
             </p>
-          </div>
-          <div className="p-6">
-            <img
-              src={highlightedImage}
-              alt="Comparison with highlighted changes"
-              className="w-full h-auto rounded-lg"
-            />
           </div>
         </div>
       )}
 
       {/* Change Details */}
-      {(parsedResult.criticalChanges.length > 0 || parsedResult.minorChanges.length > 0 || parsedResult.cosmeticChanges.length > 0) && (
+      {!noChanges && (
         <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-600 rounded-lg overflow-hidden">
           <div className="p-6 border-b border-slate-200 dark:border-slate-600">
             <h4 className="text-lg font-semibold text-slate-800 dark:text-slate-200">
               Detailed Change Analysis
             </h4>
+            <p className="text-sm text-slate-600 dark:text-slate-400">
+              Locations are the AI's description of where each change appears — always verify against the actual labels.
+            </p>
           </div>
           <div className="p-6 space-y-6">
-            {parsedResult.criticalChanges.length > 0 && (
-              <div>
-                <h5 className="text-red-600 dark:text-red-400 font-semibold mb-3">Critical Changes (Require TTB Submission)</h5>
-                {parsedResult.criticalChanges.map((change, index) => (
-                  <div key={index} className="border-l-4 border-red-500 pl-4 mb-3">
-                    <div className="flex items-center mb-1">
-                      <MapPin className="h-4 w-4 text-red-500 mr-2" />
-                      <span className="font-medium text-slate-800 dark:text-slate-200">{change.location?.description}</span>
-                    </div>
-                    <p className="text-sm text-slate-600 dark:text-slate-400">{change.impact}</p>
-                  </div>
-                ))}
-              </div>
-            )}
-
-            {parsedResult.minorChanges.length > 0 && (
-              <div>
-                <h5 className="text-yellow-600 dark:text-yellow-400 font-semibold mb-3">Minor Changes (May Require TTB Submission)</h5>
-                {parsedResult.minorChanges.map((change, index) => (
-                  <div key={index} className="border-l-4 border-yellow-500 pl-4 mb-3">
-                    <div className="flex items-center mb-1">
-                      <MapPin className="h-4 w-4 text-yellow-500 mr-2" />
-                      <span className="font-medium text-slate-800 dark:text-slate-200">{change.location?.description}</span>
-                    </div>
-                    <p className="text-sm text-slate-600 dark:text-slate-400">{change.impact}</p>
-                  </div>
-                ))}
-              </div>
-            )}
-
-            {parsedResult.cosmeticChanges.length > 0 && (
-              <div>
-                <h5 className="text-green-600 dark:text-green-400 font-semibold mb-3">Cosmetic Changes (No TTB Submission Required)</h5>
-                {parsedResult.cosmeticChanges.map((change, index) => (
-                  <div key={index} className="border-l-4 border-green-500 pl-4 mb-3">
-                    <div className="flex items-center mb-1">
-                      <MapPin className="h-4 w-4 text-green-500 mr-2" />
-                      <span className="font-medium text-slate-800 dark:text-slate-200">{change.location?.description}</span>
-                    </div>
-                    <p className="text-sm text-slate-600 dark:text-slate-400">{change.impact}</p>
-                  </div>
-                ))}
-              </div>
-            )}
+            <ChangeGroup
+              title="Critical Changes (Require TTB Submission)"
+              changes={criticalChanges}
+              headingColor="text-red-600 dark:text-red-400"
+              borderColor="border-red-500"
+              iconColor="text-red-500"
+            />
+            <ChangeGroup
+              title="Minor Changes (May Require TTB Submission)"
+              changes={minorChanges}
+              headingColor="text-yellow-600 dark:text-yellow-400"
+              borderColor="border-yellow-500"
+              iconColor="text-yellow-500"
+            />
+            <ChangeGroup
+              title="Cosmetic Changes (No TTB Submission Required)"
+              changes={cosmeticChanges}
+              headingColor="text-green-600 dark:text-green-400"
+              borderColor="border-green-500"
+              iconColor="text-green-500"
+            />
           </div>
         </div>
       )}
 
       {/* Recommendations */}
-      {parsedResult.recommendations.length > 0 && (
+      {report.recommendations.length > 0 && (
         <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-600 rounded-lg overflow-hidden">
           <div className="p-6 border-b border-slate-200 dark:border-slate-600">
             <h4 className="text-lg font-semibold text-slate-800 dark:text-slate-200">
@@ -327,7 +173,7 @@ export const ComparisonResults: React.FC<ComparisonResultsProps> = ({
           </div>
           <div className="p-6">
             <ul className="space-y-2">
-              {parsedResult.recommendations.map((rec, index) => (
+              {report.recommendations.map((rec, index) => (
                 <li key={index} className="flex items-start">
                   <CheckCircle className="h-5 w-5 text-sky-500 mr-3 mt-0.5 flex-shrink-0" />
                   <span className="text-slate-700 dark:text-slate-300">{rec}</span>
@@ -340,13 +186,14 @@ export const ComparisonResults: React.FC<ComparisonResultsProps> = ({
 
       {/* Final Determination */}
       <div className="bg-slate-50 dark:bg-slate-700/50 border border-slate-200 dark:border-slate-600 rounded-lg p-6">
-        <h4 className="text-lg font-semibold text-slate-800 dark:text-slate-200 mb-3">
+        <h4 className="text-lg font-semibold text-slate-800 dark:text-slate-200 mb-3 flex items-center">
+          <FileText className="h-5 w-5 mr-2 text-sky-600 dark:text-sky-400" />
           Final Determination
         </h4>
         <p className="text-slate-700 dark:text-slate-300 text-lg">
-          {parsedResult.finalDetermination}
+          {report.finalDetermination}
         </p>
       </div>
     </div>
   );
-}; 
+};

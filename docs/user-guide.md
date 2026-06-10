@@ -7,11 +7,12 @@ The Alcohol Label Compliance Analyzer helps you check whether your alcohol bever
 ## Interface Overview
 
 ### Header
-- **Status Indicator**: Shows the current analysis status (Ready, Processing, Analysis completed, Analysis failed)
-- **Settings**: Access to application settings and configuration options
 - **Aardwolf Logo**: Application branding
+- **Theme Toggle**: Switch between light and dark mode
+- **Settings**: Gear icon for optionally adding your own Gemini API key — without one, analysis runs through the app's server
 
 ### Main Analysis Area
+- **Mode Selector**: Switch between "New Label" analysis and "Label Change" comparison
 - **Image Upload Section**: Upload and manage label images
 - **Product Requirements**: Configure specific ingredients in your product
 - **Beverage Category Selector**: Choose your product type
@@ -33,16 +34,15 @@ The application supports multi-image analysis for comprehensive label review.
 
 **Upload Process:**
 1. Click the "Upload Images" area or drag and drop images
-2. Select up to 5 image files (PNG, JPEG, WEBP supported)
+2. Select up to 5 image files (PNG, JPEG, WEBP, HEIC, HEIF supported)
 3. Choose the appropriate label type for each image
-4. Add optional descriptions for better context
-5. Images are automatically optimized for AI analysis
+4. Images are automatically optimized for AI analysis (very large images are downscaled)
 
 **Image Requirements:**
-- **File Size**: Maximum 10MB per image
+- **File Size**: Maximum 5MB per image
 - **Resolution**: At least 800x600 pixels recommended for best results
 - **Quality**: Clear, well-lit images with readable text
-- **Format**: PNG, JPEG, or WEBP
+- **Format**: PNG, JPEG, WEBP, HEIC, or HEIF
 
 ### Step 2: Configure Product Requirements
 
@@ -98,15 +98,16 @@ Choose the appropriate category for your alcoholic beverage:
 
 **During Analysis:**
 - All controls are disabled to prevent changes
-- Status shows "Processing..."
-- You can wait for results or navigate away (analysis continues)
+- The button shows "Processing..."
+- Stay on the page — results appear when processing completes
 
 ### Step 5: Review Results
 
 The analysis results are presented in several sections:
 
 **Compliance Status Overview**
-- Overall compliance rating (Compliant, Partially Compliant, Non-Compliant)
+- Overall compliance rating (Compliant, Partially Compliant, Non-Compliant, Unable to Determine)
+- Compliance score — compliant items out of those that apply (items marked Not Required are excluded)
 - Key issues summary
 - Color-coded status indicator
 
@@ -136,29 +137,47 @@ Additional requirements based on beverage type:
 - General TTB compliance comments
 
 **Each Item Shows:**
-- Presence and legibility assessment
-- Exact text as it appears on labels
-- TTB compliance status (Compliant, Non-Compliant, Potential Issue, Not Required)
-- Detailed explanations and recommendations
+- TTB compliance status badge (Compliant, Non-Compliant, Potential Issue, Not Required)
+- "On the label:" — the exact text as it appears on your labels (click an item to expand it)
+- "TTB Compliance Notes:" — detailed explanations grounded in TTB rules
+
+## Comparing Label Versions (Label Change Mode)
+
+Use Label Change mode to find out whether a label revision requires a new TTB submission:
+
+1. Switch to "Label Change" using the mode selector at the top
+2. Upload your current (approved) label image and your proposed (new) label image
+3. Select the beverage category
+4. Click "Analyze Label Changes"
+
+The results show a TTB submission determination (Required, Recommended, Not Required, or Uncertain) with a risk level and reasoning, plus each detected change grouped by significance:
+
+- **Critical Changes**: Require TTB submission (brand name, alcohol content, mandatory statements)
+- **Minor Changes**: May require TTB submission (ingredients, optional statements)
+- **Cosmetic Changes**: No TTB submission required (colors, fonts, graphics)
+
+Each change lists its current and proposed values, a written description of where it appears on the label, and why it matters for TTB submission. The report ends with recommendations and a final determination. If the two versions are identical, the app shows an explicit "No Differences Detected" notice.
+
+Note: change locations are textual descriptions only — the app does not draw highlights on the images. Always verify reported changes against the actual labels.
 
 ## Exporting Results
 
 ### PDF Report Generation
 
-After analysis completion, you can generate a comprehensive PDF report:
+After analysis completion (New Label mode), you can generate a comprehensive PDF report:
 
-1. Click the "Download PDF Report" button in the results section
+1. Click the "Download Report (PDF)" button in the results section
 2. The system generates a formatted PDF with:
-   - Executive summary
-   - Detailed compliance analysis
-   - Recommendations for improvements
-   - Reference to TTB regulations
+   - Compliance status overview with score and key issues
+   - Overall TTB compliance summary
+   - Detailed analysis of every mandatory item
+   - Additional compliance observations
 
 **PDF Features:**
 - Professional formatting
 - Complete analysis results
 - Date and timestamp
-- Suitable for regulatory submissions
+- Includes a disclaimer — the report is informational and not official TTB guidance
 
 ### Sharing Results
 
@@ -224,6 +243,7 @@ After analysis completion, you can generate a comprehensive PDF report:
 **Not Required**
 - Item not applicable to this product type
 - Based on your product requirements
+- Excluded from the compliance score
 - No action needed
 
 ### Common Issues and Solutions
@@ -274,15 +294,15 @@ For official guidance:
 ## Troubleshooting
 
 ### Upload Issues
-- Check file size (under 10MB)
-- Verify supported format (PNG, JPEG, WEBP)
+- Check file size (under 5MB)
+- Verify supported format (PNG, JPEG, WEBP, HEIC, HEIF)
 - Try refreshing the page
 - Check internet connection
 
 ### Analysis Errors
-- Verify API key is configured
+- Check the Settings menu (gear icon): analysis needs either the app's server key or your own Gemini API key
 - Check image quality and readability
-- Try uploading fewer images
+- Try uploading fewer or smaller images
 - Contact support if errors persist
 
 ### Result Interpretation

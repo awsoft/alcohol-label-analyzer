@@ -2,35 +2,45 @@
 
 ## Overview
 
-This guide covers deploying the Alcohol Label Compliance Analyzer to various hosting platforms and production environments.
+This guide covers deploying the Alcohol Label Compliance Analyzer to production environments.
+
+The app has two parts:
+- A static Vite/React front-end (built to `dist/`)
+- Three Vercel serverless functions in `api/` (`analyze.ts`, `compare.ts`, `key-status.ts`) that hold the Gemini API key server-side
+
+**Vercel is the recommended platform** because it deploys both parts together. Any other host can serve the static front-end, but without the functions the server-key path is unavailable and users must bring their own key via the in-app Settings menu.
+
+## How the API Key Works in Production
+
+The Gemini API key is **never** embedded in the client bundle — there is nothing to configure at build time, and inspecting the deployed JavaScript reveals no key.
+
+1. **Server-side key (default)**: set `GEMINI_API_KEY` in the deployment environment. The browser posts images to `/api/analyze` and `/api/compare`, which read the key from `process.env` at request time.
+2. **Bring your own key**: users paste a key into the Settings menu (gear icon); it is stored in browser `localStorage` and used to call Gemini directly, taking precedence over the server path.
 
 ## Pre-Deployment Checklist
 
 ### Environment Setup
-- [ ] Google Gemini API key configured
-- [ ] Environment variables properly set
-- [ ] Production build tested locally
-- [ ] All dependencies up to date
-- [ ] TypeScript compilation successful
+- [ ] Google Gemini API key generated (for the server-key path)
+- [ ] `GEMINI_API_KEY` set in the hosting platform's environment (runtime, not build)
+- [ ] Production build tested locally (`npm run build && npm run preview`)
+- [ ] All dependencies up to date (`npm audit` reports 0 vulnerabilities)
+- [ ] TypeScript compilation successful (`npx tsc --noEmit`)
 
 ### Security Review
-- [ ] No API keys in source code
-- [ ] Environment variables properly secured
-- [ ] Content Security Policy configured
+- [ ] No API keys in source code or in the built bundle
 - [ ] HTTPS enabled for production
+- [ ] Abuse exposure considered: the `/api` endpoints are unauthenticated (see below)
 - [ ] Error handling prevents sensitive data exposure
 
-### Performance Optimization
-- [ ] Bundle size analyzed and optimized
-- [ ] Images and assets compressed
-- [ ] Cache headers configured
-- [ ] Code splitting implemented where beneficial
+### Performance
+- [ ] Client-side image downscaling verified (uploads over 1.5 MB are re-encoded; payloads near the ~4.5 MB function limit are rejected with a friendly error)
+- [ ] Cache headers configured for static assets
 
 ## Platform-Specific Deployment
 
 ### Vercel (Recommended)
 
-Vercel provides optimal deployment for Vite React applications with built-in optimizations.
+Vercel deploys the Vite front-end and auto-detects the serverless functions in `api/` — **no `vercel.json` is needed**.
 
 #### Quick Deploy
 
@@ -45,357 +55,94 @@ Vercel provides optimal deployment for Vite React applications with built-in opt
    Build Command: npm run build
    Output Directory: dist
    Install Command: npm install
-   Node.js Version: 18.x
    ```
 
 3. **Environment Variables**:
    ```
-   API_KEY=your_production_gemini_api_key
+   GEMINI_API_KEY=your_production_gemini_api_key
    ```
 
 4. **Deploy**:
    - Click "Deploy"
-   - Vercel automatically builds and deploys
+   - Vercel builds the front-end and deploys the functions in `api/`
 
-#### Advanced Configuration
+#### Environment Variables Setup
 
-**`vercel.json` Configuration**:
-```json
-{
-  "framework": "vite",
-  "buildCommand": "npm run build",
-  "outputDirectory": "dist",
-  "installCommand": "npm install",
-  "functions": {},
-  "env": {
-    "API_KEY": "@api-key"
-  },
-  "build": {
-    "env": {
-      "API_KEY": "@api-key"
-    }
-  },
-  "headers": [
-    {
-      "source": "/(.*).(js|css|png|jpg|jpeg|gif|svg|ico|woff|woff2)",
-      "headers": [
-        {
-          "key": "Cache-Control",
-          "value": "public, max-age=31536000, immutable"
-        }
-      ]
-    }
-  ],
-  "redirects": [
-    {
-      "source": "/((?!api/.*).*)",
-      "destination": "/index.html"
-    }
-  ]
-}
-```
-
-**Environment Variables Setup**:
 1. Go to Project Settings → Environment Variables
-2. Add production variables:
+2. Add the production variable:
    ```
-   Name: API_KEY
+   Name: GEMINI_API_KEY
    Value: your_production_gemini_api_key
    Environments: Production, Preview
    ```
+3. Redeploy to apply changes
 
-**Custom Domain Setup**:
+The variable is read **only** by the serverless functions at request time. It does not need to be available at build time and is never exposed to browsers.
+
+#### Request Size Limit
+
+Vercel rejects function request bodies over ~4.5 MB. The client compensates automatically:
+- Uploaded files are capped at 5 MB each and downscaled to at most 2000px on the longest side (large files are re-encoded as JPEG)
+- Payloads still exceeding ~4.2 MB are blocked client-side with a friendly error suggesting fewer/smaller images — or a user-supplied key in Settings, which calls Gemini directly and bypasses the limit
+
+#### Abuse Protection
+
+The serverless endpoints constrain usage to label analysis (prompts are built server-side), but they are **unauthenticated** — anyone who can reach the deployed site can submit images for analysis on the configured key. If that matters for your deployment, add authentication or rate limiting in front of the `/api` routes (e.g. Vercel WAF rules, an auth proxy, or platform middleware), and set quota alerts on the Gemini key.
+
+#### Custom Domain Setup
+
 1. Go to Project Settings → Domains
 2. Add your domain
 3. Configure DNS records as shown
 4. SSL certificates are automatically managed
 
-### Netlify
+### Static Hosts (Netlify, AWS Amplify, Azure Static Web Apps, GitHub Pages)
 
-Netlify provides excellent static site hosting with continuous deployment.
+These platforms can serve the front-end, but the functions in `api/` use Vercel's handler format and **will not be deployed** — the server-key path returns "endpoints are not available" and every user must add their own Gemini key via the Settings menu. Do **not** set `GEMINI_API_KEY` as a build variable on these platforms; the build does not read it. To get the server-key path elsewhere, port the three small handlers in `api/` to the platform's function format (e.g. Netlify Functions).
 
-#### Quick Deploy
+Generic recipe:
 
-1. **Connect Repository**:
-   - Visit [Netlify Dashboard](https://app.netlify.com/)
-   - Click "New site from Git"
-   - Connect your repository
+1. **Build**: `npm install && npm run build`
+2. **Publish**: the `dist/` directory
+3. **SPA fallback**: rewrite all routes to `/index.html`
 
-2. **Build Settings**:
-   ```
-   Build command: npm run build
-   Publish directory: dist
-   ```
-
-3. **Environment Variables**:
-   ```
-   API_KEY=your_production_gemini_api_key
-   ```
-
-#### Advanced Configuration
-
-**`netlify.toml` Configuration**:
+**Example `netlify.toml`**:
 ```toml
 [build]
   command = "npm run build"
   publish = "dist"
 
 [build.environment]
-  NODE_VERSION = "18"
-  NPM_VERSION = "9"
+  NODE_VERSION = "20"
 
 [[redirects]]
   from = "/*"
   to = "/index.html"
   status = 200
-
-[[headers]]
-  for = "/*.js"
-  [headers.values]
-    Cache-Control = "public, max-age=31536000, immutable"
-
-[[headers]]
-  for = "/*.css"
-  [headers.values]
-    Cache-Control = "public, max-age=31536000, immutable"
-
-[[headers]]
-  for = "/*.png"
-  [headers.values]
-    Cache-Control = "public, max-age=31536000, immutable"
-
-[context.production.environment]
-  API_KEY = "your_production_api_key"
-
-[context.branch-deploy.environment]
-  API_KEY = "your_staging_api_key"
 ```
 
-**Build Hooks**:
-```bash
-# Trigger builds via webhook
-curl -X POST -d {} https://api.netlify.com/build_hooks/your_hook_id
+**GitHub Pages note** — if the site is served from a subdirectory, set the base path:
+```typescript
+// vite.config.ts
+export default defineConfig({
+  base: '/repository-name/',
+  // ... other config
+});
 ```
-
-### AWS Amplify
-
-AWS Amplify provides comprehensive hosting with CI/CD integration.
-
-#### Setup Steps
-
-1. **Connect Repository**:
-   - Open AWS Amplify Console
-   - Choose "Host your web app"
-   - Connect your Git repository
-
-2. **Build Settings**:
-   ```yaml
-   version: 1
-   frontend:
-     phases:
-       preBuild:
-         commands:
-           - npm ci
-       build:
-         commands:
-           - npm run build
-     artifacts:
-       baseDirectory: dist
-       files:
-         - '**/*'
-     cache:
-       paths:
-         - node_modules/**/*
-   ```
-
-3. **Environment Variables**:
-   ```
-   API_KEY: your_production_api_key
-   ```
-
-**Advanced Configuration**:
-
-**Custom Headers**:
-```json
-[
-  {
-    "source": "/**",
-    "headers": [
-      {
-        "key": "Strict-Transport-Security",
-        "value": "max-age=31536000; includeSubDomains"
-      },
-      {
-        "key": "X-Content-Type-Options",
-        "value": "nosniff"
-      }
-    ]
-  }
-]
-```
-
-**Redirects and Rewrites**:
-```json
-[
-  {
-    "source": "/<*>",
-    "target": "/index.html",
-    "status": "200",
-    "condition": null
-  }
-]
-```
-
-### Azure Static Web Apps
-
-Microsoft Azure provides excellent static web app hosting.
-
-#### Setup Process
-
-1. **Create Static Web App**:
-   - Open Azure Portal
-   - Create new Static Web App
-   - Connect GitHub repository
-
-2. **GitHub Actions Configuration**:
-   ```yaml
-   name: Azure Static Web Apps CI/CD
-
-   on:
-     push:
-       branches:
-         - main
-     pull_request:
-       types: [opened, synchronize, reopened, closed]
-       branches:
-         - main
-
-   jobs:
-     build_and_deploy_job:
-       if: github.event_name == 'push' || (github.event_name == 'pull_request' && github.event.action != 'closed')
-       runs-on: ubuntu-latest
-       name: Build and Deploy Job
-       steps:
-         - uses: actions/checkout@v3
-           with:
-             submodules: true
-         - name: Build And Deploy
-           id: builddeploy
-           uses: Azure/static-web-apps-deploy@v1
-           with:
-             azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN }}
-             repo_token: ${{ secrets.GITHUB_TOKEN }}
-             action: "upload"
-             app_location: "/"
-             api_location: ""
-             output_location: "dist"
-           env:
-             API_KEY: ${{ secrets.API_KEY }}
-   ```
-
-3. **Configuration File** (`staticwebapp.config.json`):
-   ```json
-   {
-     "routes": [
-       {
-         "route": "/*",
-         "serve": "/index.html",
-         "statusCode": 200
-       }
-     ],
-     "navigationFallback": {
-       "rewrite": "/index.html"
-     },
-     "globalHeaders": {
-       "content-security-policy": "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self' https://generativelanguage.googleapis.com;"
-     }
-   }
-   ```
-
-### GitHub Pages
-
-For simple static hosting directly from GitHub repository.
-
-#### Setup Steps
-
-1. **Enable GitHub Pages**:
-   - Go to repository Settings → Pages
-   - Select source: GitHub Actions
-
-2. **GitHub Actions Workflow** (`.github/workflows/deploy.yml`):
-   ```yaml
-   name: Deploy to GitHub Pages
-
-   on:
-     push:
-       branches: ['main']
-     workflow_dispatch:
-
-   permissions:
-     contents: read
-     pages: write
-     id-token: write
-
-   concurrency:
-     group: 'pages'
-     cancel-in-progress: false
-
-   jobs:
-     build:
-       runs-on: ubuntu-latest
-       steps:
-         - name: Checkout
-           uses: actions/checkout@v3
-         - name: Setup Node
-           uses: actions/setup-node@v3
-           with:
-             node-version: '18'
-             cache: 'npm'
-         - name: Install dependencies
-           run: npm ci
-         - name: Build
-           run: npm run build
-           env:
-             API_KEY: ${{ secrets.API_KEY }}
-         - name: Setup Pages
-           uses: actions/configure-pages@v3
-         - name: Upload artifact
-           uses: actions/upload-pages-artifact@v2
-           with:
-             path: './dist'
-
-     deploy:
-       environment:
-         name: github-pages
-         url: ${{ steps.deployment.outputs.page_url }}
-       runs-on: ubuntu-latest
-       needs: build
-       steps:
-         - name: Deploy to GitHub Pages
-           id: deployment
-           uses: actions/deploy-pages@v2
-   ```
-
-3. **Base Path Configuration** (if using subdirectory):
-   ```typescript
-   // vite.config.ts
-   export default defineConfig({
-     base: '/repository-name/',
-     // ... other config
-   });
-   ```
 
 ## Custom Server Deployment
+
+The same caveat applies: a self-hosted deployment serves only the static front-end, so users must bring their own key unless you also host the analysis endpoints yourself.
 
 ### Docker Deployment
 
 **Dockerfile**:
 ```dockerfile
 # Build stage
-FROM node:18-alpine as build
+FROM node:20-alpine as build
 WORKDIR /app
 COPY package*.json ./
-RUN npm ci --only=production
+RUN npm ci
 COPY . .
 RUN npm run build
 
@@ -407,80 +154,10 @@ EXPOSE 80
 CMD ["nginx", "-g", "daemon off;"]
 ```
 
-**nginx.conf**:
-```nginx
-events {
-    worker_connections 1024;
-}
+No build arguments or environment variables are needed — the build does not consume an API key.
 
-http {
-    include /etc/nginx/mime.types;
-    default_type application/octet-stream;
+### Nginx Configuration
 
-    server {
-        listen 80;
-        server_name localhost;
-        root /usr/share/nginx/html;
-        index index.html;
-
-        # SPA routing
-        location / {
-            try_files $uri $uri/ /index.html;
-        }
-
-        # Cache static assets
-        location ~* \.(js|css|png|jpg|jpeg|gif|ico|svg|woff|woff2)$ {
-            expires 1y;
-            add_header Cache-Control "public, immutable";
-        }
-
-        # Security headers
-        add_header X-Frame-Options "SAMEORIGIN";
-        add_header X-Content-Type-Options "nosniff";
-        add_header X-XSS-Protection "1; mode=block";
-    }
-}
-```
-
-**Docker Compose**:
-```yaml
-version: '3.8'
-services:
-  app:
-    build: .
-    ports:
-      - "80:80"
-    environment:
-      - API_KEY=${API_KEY}
-    restart: unless-stopped
-```
-
-### Traditional Web Server
-
-**Apache Configuration** (`.htaccess`):
-```apache
-RewriteEngine On
-RewriteBase /
-
-# Handle client-side routing
-RewriteCond %{REQUEST_FILENAME} !-f
-RewriteCond %{REQUEST_FILENAME} !-d
-RewriteRule . /index.html [L]
-
-# Cache static assets
-<filesMatch "\.(css|js|png|jpg|jpeg|gif|ico|svg|woff|woff2)$">
-    ExpiresActive on
-    ExpiresDefault "access plus 1 year"
-    Header set Cache-Control "public, immutable"
-</filesMatch>
-
-# Security headers
-Header always set X-Frame-Options "SAMEORIGIN"
-Header always set X-Content-Type-Options "nosniff"
-Header always set X-XSS-Protection "1; mode=block"
-```
-
-**Nginx Configuration**:
 ```nginx
 server {
     listen 80;
@@ -499,114 +176,47 @@ server {
         add_header Cache-Control "public, immutable";
     }
 
+    # Security headers
+    add_header X-Frame-Options "SAMEORIGIN";
+    add_header X-Content-Type-Options "nosniff";
+
     # Gzip compression
     gzip on;
-    gzip_types
-        text/plain
-        text/css
-        text/js
-        text/xml
-        text/javascript
-        application/javascript
-        application/xml+rss;
+    gzip_types text/plain text/css application/javascript application/json image/svg+xml;
 }
 ```
 
 ## Environment Management
 
-### Multiple Environments
+`GEMINI_API_KEY` is the only environment variable, and it is a **runtime server variable** — there are no `.env.production`/`.env.staging` client files, no `VITE_`-prefixed variables, and no per-environment build scripts.
 
-**Development**:
-```bash
-# .env.development
-API_KEY=dev_gemini_api_key
-VITE_DEBUG_MODE=true
-VITE_ANALYTICS_ENABLED=false
-```
+**Multiple environments on Vercel**:
+- Use the dashboard's Production / Preview / Development environment scoping to assign different keys per environment
+- Pull development values locally with `vercel env pull`
+- Run the full stack locally with `vercel dev` (requires the Vercel CLI and a linked project)
 
-**Staging**:
-```bash
-# .env.staging
-API_KEY=staging_gemini_api_key
-VITE_DEBUG_MODE=false
-VITE_ANALYTICS_ENABLED=true
-```
-
-**Production**:
-```bash
-# .env.production
-API_KEY=production_gemini_api_key
-VITE_DEBUG_MODE=false
-VITE_ANALYTICS_ENABLED=true
-```
-
-### CI/CD Environment Variables
-
-**GitHub Secrets**:
-```bash
-API_KEY_DEV=development_api_key
-API_KEY_STAGING=staging_api_key
-API_KEY_PROD=production_api_key
-```
-
-**Build Scripts**:
-```json
-{
-  "scripts": {
-    "build:dev": "vite build --mode development",
-    "build:staging": "vite build --mode staging",
-    "build:prod": "vite build --mode production"
-  }
-}
-```
+**Local development without Vercel**: `npm run dev` serves the front-end only; add a key via the in-app Settings menu.
 
 ## Monitoring and Maintenance
 
 ### Health Checks
 
-**Basic Health Check**:
-```typescript
-// Add to main app
-const healthCheck = {
-  status: 'healthy',
-  timestamp: new Date().toISOString(),
-  version: APP_VERSION,
-  apiStatus: getApiKeyStatus().isConfigured ? 'configured' : 'not-configured'
-};
+The deployment exposes a natural health check:
 
-// Expose as JSON endpoint if using server
 ```
+GET /api/key-status        → { "configured": true | false }
+GET /api/key-status?test=1 → { "configured": true, "live": true | false }
+```
+
+The plain request is free and safe to poll. The `?test=1` variant performs a real (tiny) Gemini call — keep it user-initiated (it backs the "Test Connection" button in Settings) rather than automated.
+
+### Analytics
+
+Vercel Analytics is already integrated (`<Analytics />` in `App.tsx`) and activates automatically on Vercel deployments once Analytics is enabled for the project.
 
 ### Error Monitoring
 
-**Error Boundary**:
-```typescript
-// Production error logging
-componentDidCatch(error: Error, errorInfo: ErrorInfo) {
-  if (import.meta.env.PROD) {
-    // Send to monitoring service
-    console.error('Production error:', error, errorInfo);
-  }
-}
-```
-
-### Performance Monitoring
-
-**Web Vitals**:
-```typescript
-import { getCLS, getFID, getFCP, getLCP, getTTFB } from 'web-vitals';
-
-function sendToAnalytics(metric: any) {
-  // Send to analytics service
-  console.log(metric);
-}
-
-getCLS(sendToAnalytics);
-getFID(sendToAnalytics);
-getFCP(sendToAnalytics);
-getLCP(sendToAnalytics);
-getTTFB(sendToAnalytics);
-```
+Serverless function errors surface as JSON (`{ "error": "..." }`) with appropriate status codes (`400` bad request, `503` no key configured, `502` upstream Gemini failure) and appear in the Vercel function logs. Client-side errors are shown in the UI and logged to the browser console.
 
 ## Troubleshooting Deployment
 
@@ -614,7 +224,7 @@ getTTFB(sendToAnalytics);
 
 **Build Failures**:
 ```bash
-# Check Node.js version
+# Check Node.js version (20.x or higher)
 node --version
 
 # Clear cache and reinstall
@@ -625,40 +235,29 @@ npm install
 npx tsc --noEmit
 ```
 
-**Environment Variable Issues**:
-```bash
-# Verify environment variables are set
-echo $API_KEY
-
-# Check build output includes variables
-npm run build && cat dist/index.html
-```
+**API Key / Function Issues**:
+- Settings shows "Not configured": `GEMINI_API_KEY` is missing from the environment, or the change was not followed by a redeploy
+- `503` from `/api/analyze` or `/api/compare`: the deployed functions found no `GEMINI_API_KEY`
+- "The analysis endpoints are not available in this environment": the host did not deploy the `api/` functions (non-Vercel static host, or local `npm run dev`/`npm run preview`) — users must add their own key in Settings
+- "The combined images are too large to send": payload exceeded the ~4 MB client guard — use fewer/smaller images or a browser key
+- Verifying the key is absent from the bundle: `grep -r "AIza" dist/` should return nothing
 
 **Routing Issues**:
-- Ensure SPA fallback is configured
-- Check server configuration for client-side routing
-- Verify base path configuration
-
-**Performance Issues**:
-```bash
-# Analyze bundle size
-npm run build -- --analyze
-
-# Check for large dependencies
-npx webpack-bundle-analyzer dist
-```
+- Ensure the SPA fallback to `/index.html` is configured (automatic on Vercel)
+- On Vercel, paths under `/api/` must reach the functions, not the SPA fallback
+- Verify the `base` path configuration when serving from a subdirectory
 
 ### Deployment Validation
 
 **Post-Deployment Checklist**:
 - [ ] Application loads without errors
-- [ ] API key functionality works
-- [ ] Image upload works correctly
-- [ ] Analysis completes successfully
-- [ ] PDF generation works
-- [ ] All routes accessible
-- [ ] Performance within acceptable limits
-- [ ] Error handling works correctly
+- [ ] `GET /api/key-status` returns `{ "configured": true }`
+- [ ] Settings menu shows "Server key configured" and "Test Connection" reports Connected
+- [ ] Image upload works (including a file over 1.5 MB, which should be downscaled transparently)
+- [ ] New-label analysis completes successfully
+- [ ] Label comparison mode (with beverage category selection) completes successfully
+- [ ] PDF export works
+- [ ] Dark mode toggle works
 - [ ] Analytics tracking functional
 
 This deployment guide provides comprehensive coverage for deploying the Alcohol Label Compliance Analyzer to production environments.

@@ -32,9 +32,6 @@ nvm use 18
 # Install missing peer dependencies
 npm install --legacy-peer-deps
 
-# Or force install
-npm install --force
-
 # Or clear cache and reinstall
 npm cache clean --force
 rm -rf node_modules package-lock.json
@@ -47,7 +44,6 @@ npm install
 ```bash
 # Fix npm permissions (macOS/Linux)
 sudo chown -R $(whoami) ~/.npm
-sudo chown -R $(whoami) /usr/local/lib/node_modules
 
 # Or use npm without sudo
 mkdir ~/.npm-global
@@ -56,47 +52,63 @@ echo 'export PATH=~/.npm-global/bin:$PATH' >> ~/.bashrc
 source ~/.bashrc
 ```
 
-### API Key Configuration Issues
+### API Key Issues
 
-**Issue**: "Gemini API Key is missing" error
+The app can get a Gemini API key from two places:
 
-**Symptoms**:
-- Red error message in application
-- Analysis button disabled
-- API key status shows "not configured"
+1. **Server key (default)** — `GEMINI_API_KEY` set in the deployment environment (e.g. the Vercel dashboard). The browser calls the app's serverless endpoints (`/api/analyze`, `/api/compare`, `/api/key-status`); the key never reaches the browser.
+2. **Your own key** — added via the Settings menu (gear icon). It is stored in your browser's `localStorage` (`alcohol-label-analyzer-api-key`) and used to call Gemini directly, skipping the server entirely. It always takes priority over the server key.
 
-**Solution**:
-1. Create `.env.local` file in project root:
-   ```bash
-   API_KEY=your_actual_api_key_here
-   ```
+A `.env.local` file has no effect — the key is never compiled into the client bundle, and client code never reads environment variables.
 
-2. Verify API key format:
-   ```bash
-   # Should start with AIza...
-   echo $API_KEY
-   ```
-
-3. Restart development server:
-   ```bash
-   npm run dev
-   ```
-
-**Issue**: "The configured Gemini API Key is invalid"
+**Issue**: Settings shows "Not configured" / banner says "No Gemini API key is configured"
 
 **Solution**:
-1. Verify API key is correctly copied
-2. Check for extra spaces or characters
-3. Generate new API key at [Google AI Studio](https://aistudio.google.com/)
-4. Ensure API key has proper permissions
+1. Add your own key via Settings → "Add API Key" (get one at [Google AI Studio](https://aistudio.google.com/)), or
+2. For a deployment: set `GEMINI_API_KEY` in the hosting platform's environment variables and redeploy, or
+3. For local development with the server path: run `vercel dev` with `GEMINI_API_KEY` set — plain `npm run dev` has no `/api` routes, so a server key can never be detected there
 
-**Issue**: API key works locally but not in production
+**Issue**: "The analysis endpoints are not available in this environment. Add your own Gemini API key via the Settings menu, or run the app with `vercel dev`."
+
+**Cause**: You are running the front-end alone (`npm run dev` or `vite preview`), which serves no `/api` routes, and no personal key is saved in Settings.
 
 **Solution**:
-1. Set environment variable in hosting platform
-2. Verify variable name matches exactly (`API_KEY`)
-3. Redeploy application after setting variables
-4. Check deployment logs for environment variable issues
+1. Add your own Gemini API key via the Settings menu (the browser then calls Gemini directly), or
+2. Run `vercel dev` (requires the Vercel CLI and a linked project) with `GEMINI_API_KEY` available in the environment
+
+**Issue**: "The server has no Gemini API key configured. Add your own key via the Settings menu instead."
+
+**Cause**: The deployed serverless functions are reachable, but `GEMINI_API_KEY` is not set in their environment.
+
+**Solution**:
+1. Set `GEMINI_API_KEY` in the hosting platform (Vercel: Project → Settings → Environment Variables)
+2. Redeploy the application
+3. Or add your own key via Settings as a workaround
+
+**Issue**: "The configured Gemini API key is invalid. Please verify the key."
+
+**Solution**:
+1. Identify which key is in use: a key saved in Settings always takes priority over the server key
+2. Verify the key is correctly copied (no extra spaces or characters)
+3. Generate a new API key at [Google AI Studio](https://aistudio.google.com/)
+4. Update it via Settings → "Update API Key", or fix `GEMINI_API_KEY` in the deployment environment and redeploy
+
+**Issue**: "The Gemini API quota has been exceeded. Please check usage and limits."
+
+**Solution**:
+1. Check API usage at [Google AI Studio](https://aistudio.google.com/)
+2. Wait for the quota to reset or upgrade the API plan
+3. If a shared server key is exhausted, add your own key via Settings
+
+### Understanding the Settings Status
+
+Opening Settings only checks key *presence* (localStorage plus a cheap `GET /api/key-status`) — no Gemini quota is spent on page load. A live test runs only when you click "Test Connection" or save a key.
+
+- **Server key configured** — no personal key saved; the server reports a key is present (not live-tested)
+- **Your key (untested)** — a personal key is saved but has not been live-tested yet
+- **Connected** — the last "Test Connection" succeeded
+- **Connection failed** — the live test failed: invalid key, exhausted quota, network problems, or (server path) running locally without `vercel dev`
+- **Not configured** — no personal key and no server key detected
 
 ### Build and Development Server Issues
 
@@ -109,10 +121,7 @@ rm -rf node_modules package-lock.json
 npm install
 
 # Check Node.js version
-node --version  # Should be 18+ 
-
-# Install Vite globally if needed
-npm install -g vite
+node --version  # Should be 18+
 ```
 
 **Issue**: Development server won't start
@@ -137,78 +146,65 @@ npm run dev -- --port 3000
 # Check TypeScript without building
 npx tsc --noEmit
 
-# Install type definitions
+# Install React type definitions
 npm run install-types
-
-# Update TypeScript
-npm install typescript@latest --save-dev
 ```
 
 ## Application Runtime Issues
 
 ### Image Upload Problems
 
-**Issue**: "File type not supported" error
+**Issue**: Image won't upload or fails to convert
 
 **Symptoms**:
-- Image appears selected but won't upload
-- Error message about unsupported format
+- "Failed to load the image. It might be corrupt or an unsupported format for this browser."
+- "Failed to convert the image. The file might be corrupt or in an unusual format."
 
 **Solution**:
-1. Use supported formats: PNG, JPEG, WEBP
-2. Convert images if necessary:
+1. Use the directly supported formats: PNG, JPEG, WEBP, HEIC, HEIF
+2. Other formats are converted to JPEG automatically only if your browser can decode them — convert exotic formats yourself:
    ```bash
    # Using ImageMagick
    convert image.bmp image.png
-   
-   # Using online converters
-   # cloudconvert.com, convertio.co
    ```
+3. Re-export the image if it may be corrupt
 
-**Issue**: "File size too large" error
-
-**Symptoms**:
-- Large images won't upload
-- Error about 10MB limit
+**Issue**: "File is too large (...MB). Maximum allowed size is 5MB."
 
 **Solution**:
-1. Compress images before upload:
+1. Compress or resize the image before upload:
    ```bash
    # Using ImageMagick
    convert input.jpg -quality 85 -resize 2048x2048> output.jpg
-   
+
    # Using online tools
    # tinypng.com, squoosh.app
    ```
+2. Take photos at lower resolution — anything beyond ~2000px on the longest side is downscaled before analysis anyway
 
-2. Take photos with lower resolution
-3. Use photo editing software to reduce file size
+**Issue**: "The combined images are too large to send (over ~4 MB). Use fewer or smaller images, or add your own Gemini API key in Settings to lift this limit."
+
+**Cause**: Without a personal key, analysis goes through the app's serverless endpoints, which reject request bodies over ~4.5 MB (a Vercel platform limit; the app caps payloads at ~4.2 MB).
+
+**Solution**:
+1. Upload fewer or smaller images
+2. Or add your own Gemini API key in Settings — direct browser-to-Gemini calls are not subject to this limit
 
 **Issue**: Images upload but preview doesn't show
 
 **Solution**:
 1. Check browser console for errors
-2. Try different image format
+2. Try a different image format
 3. Refresh page and try again
-4. Check if browser supports FileReader API
 
 ### Analysis Issues
 
-**Issue**: "No images provided for analysis" error
+**Issue**: "Please upload at least one label image first." / "Please upload both current and proposed label images."
 
 **Solution**:
-1. Ensure at least one image is uploaded
-2. Check that images completed upload process
-3. Verify images appear in preview area
-4. Try refreshing page and re-uploading
-
-**Issue**: "You have exceeded your Gemini API quota"
-
-**Solution**:
-1. Check API usage at [Google AI Studio](https://aistudio.google.com/)
-2. Wait for quota reset (usually monthly)
-3. Upgrade API plan if needed
-4. Use fewer/smaller images temporarily
+1. Ensure the required image(s) finished processing and appear in the preview area
+2. In Label Change mode, both the current and the proposed label are required
+3. Try refreshing the page and re-uploading
 
 **Issue**: Analysis takes very long or times out
 
@@ -217,22 +213,23 @@ npm install typescript@latest --save-dev
 2. Ensure images are clear and well-lit
 3. Compress images to reduce processing time
 4. Check internet connection stability
-5. Try again during off-peak hours
 
-**Issue**: Analysis returns empty or garbled results
+**Issue**: "Received an empty response from the AI..." or "The AI returned a response that could not be parsed..."
+
+**Cause**: Gemini is asked for structured JSON via a response schema, so these are rare and usually transient.
 
 **Solution**:
-1. Verify image quality:
-   - Text should be clearly readable
-   - Good lighting and focus
-   - Minimal glare or shadows
+1. Try the analysis again
+2. Verify image quality — text should be clearly readable, well-lit, with minimal glare
+3. Ensure the images actually show alcohol labels
+4. Try fewer images or different angles
 
-2. Check image content:
-   - Ensure images show alcohol labels
-   - Verify text is in English
-   - Confirm labels are complete
+**Issue**: Comparison reports "No Differences Detected" but you expected changes
 
-3. Try different images or angles
+**Solution**:
+1. Confirm you uploaded the right files to the right slots (current vs. proposed)
+2. Use legible, similarly framed images of both versions
+3. Re-run the comparison — only differences the AI can verify are reported
 
 ### PDF Generation Issues
 
@@ -240,17 +237,16 @@ npm install typescript@latest --save-dev
 
 **Solution**:
 1. Ensure analysis completed successfully
-2. Check browser supports PDF generation
-3. Try again after clearing browser cache
-4. Use different browser if problem persists
+2. Try again after clearing browser cache
+3. Use a different browser if the problem persists
 
 **Issue**: PDF download doesn't start
 
 **Solution**:
 1. Check browser download settings
 2. Disable popup blockers
-3. Try right-click "Save link as..."
-4. Check if browser blocks automatic downloads
+3. Check if browser blocks automatic downloads
+4. The file is saved as `TTB_Compliance_Report_<timestamp>.pdf` — check your downloads folder
 
 ## User Interface Issues
 
@@ -263,23 +259,14 @@ npm install typescript@latest --save-dev
 2. Clear browser cache and cookies
 3. Check if ad blockers are interfering
 4. Try different browser
-5. Check browser console for CSS errors
-
-**Issue**: Mobile layout issues
-
-**Solution**:
-1. Use modern mobile browser
-2. Enable JavaScript if disabled
-3. Try landscape orientation
-4. Use desktop version for complex analysis
+5. Check browser console for errors
 
 **Issue**: Dark mode not working properly
 
 **Solution**:
-1. Check browser supports CSS custom properties
-2. Clear browser cache
-3. Try toggling system dark/light mode
-4. Use browser developer tools to check CSS
+1. Use the sun/moon toggle in the header — the theme is stored in the browser (`localStorage` key `theme`) and applied as a `dark` class on the page
+2. Clear browser cache / site data and reload
+3. With no saved preference, the app follows your system dark/light setting
 
 ### Interaction Problems
 
@@ -289,8 +276,8 @@ npm install typescript@latest --save-dev
 1. Check if JavaScript is enabled
 2. Clear browser cache
 3. Disable browser extensions temporarily
-4. Try different browser
-5. Check browser console for JavaScript errors
+4. Check browser console for JavaScript errors
+5. Note: the analyze controls are intentionally disabled while processing, when no key is configured, and after an analysis completes (change the images to start over)
 
 **Issue**: Drag and drop doesn't work
 
@@ -298,29 +285,17 @@ npm install typescript@latest --save-dev
 1. Use click upload instead
 2. Check browser supports HTML5 File API
 3. Try different browser
-4. Ensure proper file permissions
 
 ## Performance Issues
 
-### Slow Loading
-
-**Issue**: Application takes long time to load
+### Slow Loading or Processing
 
 **Solution**:
 1. Check internet connection speed
-2. Clear browser cache
-3. Try different time of day
-4. Use browser developer tools to identify slow resources
-5. Disable unnecessary browser extensions
-
-**Issue**: Analysis processing is very slow
-
-**Solution**:
-1. Reduce image file sizes
-2. Upload fewer images at once
+2. Reduce image file sizes and upload fewer images at once
 3. Check API quota usage
-4. Try during off-peak hours
-5. Ensure stable internet connection
+4. Clear browser cache
+5. Disable unnecessary browser extensions
 
 ### Memory Issues
 
@@ -330,18 +305,16 @@ npm install typescript@latest --save-dev
 1. Close other browser tabs
 2. Restart browser
 3. Upload smaller/fewer images
-4. Use browser with more available memory
-5. Check for memory leaks in browser developer tools
 
 ## Error Messages and Solutions
 
 ### Common Error Messages
 
-**"Network Error" or "Failed to fetch"**
+**"Could not reach the analysis service. Check your connection and try again."**
 
 **Causes**:
 - Internet connection issues
-- API service temporarily unavailable
+- The app's serverless endpoints temporarily unavailable
 - Firewall blocking requests
 
 **Solutions**:
@@ -350,38 +323,30 @@ npm install typescript@latest --save-dev
 3. Check firewall/antivirus settings
 4. Try different network (mobile hotspot)
 
-**"Invalid API response format"**
+**"The AI service encountered an internal error. Please try again later."**
 
 **Causes**:
-- API service returning unexpected data
-- Network interference
-- API service updates
+- Temporary problem on the Gemini side
 
 **Solutions**:
 1. Try again in a few minutes
-2. Check if images are appropriate for analysis
-3. Reduce image complexity
-4. Contact support if persistent
+2. Reduce the number or size of images
 
-**"Analysis failed: Image format not supported by AI"**
+**"The image format is not supported by the AI, even after conversion attempts. Please try PNG, JPEG, or WEBP."**
 
 **Causes**:
-- Unusual image format
-- Corrupted image file
-- Image too complex for AI processing
+- Unusual or corrupted image file
 
 **Solutions**:
-1. Convert to standard format (PNG, JPEG)
-2. Try different image of same label
-3. Ensure image is not corrupted
-4. Simplify image (crop to label only)
+1. Convert to a standard format (PNG, JPEG)
+2. Try a different image of the same label
+3. Ensure the image is not corrupted
 
 ### Browser-Specific Issues
 
 **Chrome Issues**:
 - Clear site data: Settings → Privacy → Site Settings → View permissions and data stored across sites
 - Disable extensions in incognito mode
-- Reset Chrome settings if necessary
 
 **Firefox Issues**:
 - Clear cookies and site data
@@ -396,7 +361,6 @@ npm install typescript@latest --save-dev
 **Edge Issues**:
 - Clear browsing data
 - Reset site permissions
-- Try compatibility mode
 
 ## Network and Connectivity Issues
 
@@ -405,28 +369,17 @@ npm install typescript@latest --save-dev
 **Issue**: Analysis requests blocked by firewall
 
 **Solution**:
-1. Add exception for generativelanguage.googleapis.com
-2. Temporarily disable firewall to test
-3. Check corporate firewall settings
-4. Contact IT administrator if in corporate environment
+1. With your own key (Settings), the browser calls `generativelanguage.googleapis.com` directly — add an exception for that domain
+2. Without a personal key, the browser only calls the app's own `/api` endpoints; the Gemini call happens server-side
+3. Contact your IT administrator if in a corporate environment
 
-**Issue**: VPN interfering with requests
+**Issue**: VPN or proxy interfering with requests
 
 **Solution**:
 1. Try without VPN
 2. Switch VPN server location
-3. Use VPN with better Google API support
-4. Configure VPN to allow Google AI services
-
-### Proxy and Corporate Networks
-
-**Issue**: Application doesn't work on corporate network
-
-**Solution**:
-1. Contact IT administrator
-2. Request whitelist for googleapis.com domain
-3. Try from personal network
-4. Use mobile hotspot temporarily
+3. Request a whitelist entry for googleapis.com if using your own key on a corporate network
+4. Use a mobile hotspot temporarily to confirm the network is the cause
 
 ## Data and Privacy Concerns
 
@@ -434,20 +387,20 @@ npm install typescript@latest --save-dev
 
 **Question**: Where are my images stored?
 
-**Answer**: Images are processed client-side only and sent directly to Google's Gemini API. No images are stored on our servers or in browser storage permanently.
+**Answer**: They aren't. With your own key, images go straight from your browser to Google's Gemini API. Without one, they pass through the app's serverless functions to Gemini and are not persisted anywhere by the app.
 
 **Question**: Can others see my label images?
 
-**Answer**: No, images are processed privately through your API key and are not shared with other users.
+**Answer**: No, images are only sent to Google's Gemini API for the duration of the analysis and are not shared with other users.
 
 ### API Key Security
 
 **Question**: Is my API key secure?
 
-**Answer**: 
-- API keys are stored in environment variables only
+**Answer**:
+- The server key lives only in the deployment environment and is never sent to browsers
+- A key you add in Settings stays in your browser's `localStorage` and is used to call Gemini directly — it is never sent to the app's servers; remove it any time with Settings → "Remove"
 - Never commit API keys to code repositories
-- Use different keys for development and production
 - Rotate keys regularly for security
 
 ## Getting Additional Help
@@ -466,9 +419,9 @@ When contacting support, include:
 1. Browser and version
 2. Operating system
 3. Error messages (exact text)
-4. Steps to reproduce issue
-5. Screenshots if helpful
-6. Network environment (corporate, home, etc.)
+4. Whether you use your own API key (Settings) or the app's server key
+5. Steps to reproduce issue
+6. Screenshots if helpful
 
 ### TTB Regulatory Questions
 
@@ -482,12 +435,7 @@ For compliance questions, contact:
 **Browser Developer Tools**:
 1. Press F12 to open developer tools
 2. Check Console tab for error messages
-3. Check Network tab for failed requests
-4. Check Application tab for storage issues
-
-**Application Logs**:
-1. Open browser console (F12)
-2. Look for error messages in red
-3. Copy error text for support requests
+3. Check Network tab for failed requests (`/api/analyze`, `/api/compare`, `/api/key-status` on the server path)
+4. Check Application tab → Local Storage for the saved key (`alcohol-label-analyzer-api-key`) and theme
 
 This troubleshooting guide covers the most common issues encountered with the Alcohol Label Compliance Analyzer. If you encounter an issue not covered here, please contact support with detailed information about the problem.

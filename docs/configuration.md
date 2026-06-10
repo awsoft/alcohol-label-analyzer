@@ -1,22 +1,25 @@
 # Configuration Guide
 
-## Environment Variables
+## API Key Configuration
 
-### Required Configuration
+The Gemini API key is **never** compiled into the client bundle. `vite.config.ts` contains no `define` block, so creating a `.env.local` with an API key has no effect on the client build. There are two supported ways to provide a key:
 
-#### `API_KEY`
+### Server-Side Key (default): `GEMINI_API_KEY`
 
-Google Gemini API key for AI-powered label analysis.
+Google Gemini API key used by the serverless functions in `api/`.
 
 **Format**: String
-**Required**: Yes
-**Example**: `API_KEY=AIzaSyBw8vQ9X...`
+**Required**: Only for the server-key path
+**Example**: `GEMINI_API_KEY=AIzaSyBw8vQ9X...`
+**Read by**: `api/analyze.ts`, `api/compare.ts`, `api/key-status.ts` via `process.env` at request time — never at build time, never exposed to browsers
 
 **Setup Instructions**:
 1. Visit [Google AI Studio](https://aistudio.google.com/)
 2. Create or sign in to your Google account
 3. Generate a new API key for Gemini models
-4. Add the key to your `.env.local` file
+4. Set `GEMINI_API_KEY` in the deployment environment (e.g. the Vercel dashboard under Settings → Environment Variables)
+
+For local development the functions only run under `vercel dev` (Vercel CLI + linked project) with `GEMINI_API_KEY` available in the environment. Plain `npm run dev` serves the front-end only.
 
 **Security Notes**:
 - Never commit API keys to version control
@@ -24,101 +27,53 @@ Google Gemini API key for AI-powered label analysis.
 - Rotate keys regularly for security
 - Monitor usage and set quota alerts
 
-### Optional Configuration
+### Browser Key (bring your own key)
 
-#### `VITE_APP_VERSION`
+Users can paste their own Gemini API key into the in-app Settings menu (gear icon in the header).
 
-Override the application version displayed in the UI.
+- Stored in the browser's `localStorage` under the key `alcohol-label-analyzer-api-key`
+- Used to call Gemini **directly from the browser**; it is never sent to this app's servers
+- Takes precedence over the server-side path whenever present
+- Removed via the "Remove" button in Settings
 
-**Format**: String (semantic version)
-**Required**: No
-**Default**: Value from `package.json`
-**Example**: `VITE_APP_VERSION=1.2.0`
+## Serverless Function Configuration
 
-## Environment Files
+The `api/` directory contains Vercel serverless functions. They are auto-detected at deploy time — no `vercel.json` is needed.
 
-### Development Environment
+| Endpoint | Method | Purpose |
+|----------|--------|---------|
+| `/api/analyze` | POST | New-label compliance analysis |
+| `/api/compare` | POST | Current-vs-proposed label comparison |
+| `/api/key-status` | GET | Reports `{ configured: boolean }`; `?test=1` performs a live (tiny) Gemini call |
 
-Create a `.env.local` file in the project root:
+**Request size limit**: Vercel rejects request bodies over ~4.5 MB. The client refuses to send payloads above ~4.2 MB (`MAX_PROXY_PAYLOAD_BYTES` in `services/geminiService.ts`) and shows a friendly error suggesting fewer/smaller images or a browser key (which calls Gemini directly and bypasses the limit). Uploaded images are downscaled client-side to stay within it (see Image Upload Limits below).
 
-```bash
-# Required: Google Gemini API Key
-API_KEY=your_gemini_api_key_here
-
-# Optional: Version override
-VITE_APP_VERSION=1.2.0
-
-# Optional: Debug settings
-VITE_DEBUG_MODE=true
-```
-
-### Production Environment
-
-For production deployments, set environment variables through your hosting platform:
-
-**Vercel**:
-1. Go to your project dashboard
-2. Navigate to Settings → Environment Variables
-3. Add `API_KEY` with your production API key
-4. Deploy to apply changes
-
-**Other Platforms**:
-- Netlify: Site settings → Environment variables
-- AWS Amplify: App settings → Environment variables
-- Azure Static Web Apps: Configuration → Application settings
-
-### Environment Variable Loading
-
-Vite loads environment variables in this order:
-1. `.env.local` (always ignored by git)
-2. `.env.production` or `.env.development`
-3. `.env`
-
-Variables prefixed with `VITE_` are exposed to client-side code.
+**Abuse note**: the endpoints are unauthenticated. Prompts are built server-side (in `shared/labelAnalysis.ts`), so they are not a generic Gemini relay, but anyone who can reach the deployed site can run analyses on the configured key. Add authentication or rate limiting in front of `/api` for sensitive deployments.
 
 ## Build Configuration
 
 ### Vite Configuration
 
-The application uses Vite for building and development. Configuration is in `vite.config.ts`:
+The application uses Vite for building and development. The full configuration in `vite.config.ts`:
 
 ```typescript
+import path from 'path';
 import { defineConfig } from 'vite';
-import react from '@vitejs/plugin-react';
 
+// NOTE: the Gemini API key is deliberately NOT injected into the client
+// bundle. Server-side calls go through the Vercel functions in /api, which
+// read GEMINI_API_KEY from the server environment. Users can alternatively
+// provide their own key at runtime via the in-app Settings menu.
 export default defineConfig({
-  plugins: [react()],
-  
-  // Build settings
-  build: {
-    outDir: 'dist',
-    sourcemap: true,
-    minify: 'terser',
-    rollupOptions: {
-      output: {
-        manualChunks: {
-          vendor: ['react', 'react-dom'],
-          gemini: ['@google/genai'],
-          pdf: ['jspdf', 'jspdf-autotable']
-        }
-      }
-    }
+  resolve: {
+    alias: {
+      '@': path.resolve(__dirname, '.'),
+    },
   },
-  
-  // Development server
-  server: {
-    port: 5173,
-    host: true,
-    open: true
-  },
-  
-  // Preview server (for production builds)
-  preview: {
-    port: 4173,
-    host: true
-  }
 });
 ```
+
+There are no `VITE_`-prefixed environment variables; the client build reads no environment at all. `index.html` is minimal — all CSS and JavaScript is bundled by Vite (no CDN scripts or import maps).
 
 ### TypeScript Configuration
 
@@ -128,151 +83,128 @@ Strict TypeScript configuration in `tsconfig.json`:
 {
   "compilerOptions": {
     "target": "ES2020",
-    "useDefineForClassFields": true,
-    "lib": ["ES2020", "DOM", "DOM.Iterable"],
+    "experimentalDecorators": true,
+    "useDefineForClassFields": false,
     "module": "ESNext",
+    "lib": ["ES2020", "DOM", "DOM.Iterable"],
     "skipLibCheck": true,
     "moduleResolution": "bundler",
     "allowImportingTsExtensions": true,
     "isolatedModules": true,
     "moduleDetection": "force",
     "noEmit": true,
+    "allowJs": true,
     "jsx": "react-jsx",
     "strict": true,
     "noUnusedLocals": true,
     "noUnusedParameters": true,
     "noFallthroughCasesInSwitch": true,
-    "noUncheckedSideEffectImports": true
-  },
-  "include": ["src"],
-  "references": [{ "path": "./tsconfig.node.json" }]
+    "noUncheckedSideEffectImports": true,
+    "paths": { "@/*": ["./*"] }
+  }
 }
 ```
 
 ### Tailwind CSS Configuration
 
-Styling configuration would be in `tailwind.config.js` (if present):
+The project uses Tailwind CSS v4, which is configured in CSS rather than JavaScript — there is **no `tailwind.config.js`** (v4 uses CSS-first configuration and automatic content detection). The entry point is `index.css`:
 
-```javascript
-module.exports = {
-  content: [
-    "./index.html",
-    "./src/**/*.{js,ts,jsx,tsx}",
-  ],
-  darkMode: 'class',
-  theme: {
-    extend: {
-      colors: {
-        // Custom color extensions
-      }
-    },
-  },
-  plugins: [],
+```css
+@import "tailwindcss";
+
+/* Dark mode is toggled via the `dark` class on <html> (see ThemeContext) */
+@custom-variant dark (&:where(.dark, .dark *));
+
+@theme {
+  --font-sans: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif;
 }
 ```
+
+`postcss.config.js` contains only the Tailwind plugin (autoprefixer is built into v4):
+
+```javascript
+export default {
+  plugins: {
+    '@tailwindcss/postcss': {},
+  },
+}
+```
+
+To extend the theme, add design tokens to the `@theme` block in `index.css`.
 
 ## Application Settings
 
 ### Default Settings
 
 ```typescript
-// Application version
-export const APP_VERSION = "1.2.0";
+// constants.ts — the only application constant
+export const APP_VERSION = "1.4.0";
+```
 
-// Default beverage category
-const DEFAULT_BEVERAGE_CATEGORY = 'distilled-spirits';
+The default beverage category is `'distilled-spirits'`, selectable in the UI for both analysis modes.
 
-// Image upload limits
-const MAX_IMAGE_SIZE = 10 * 1024 * 1024; // 10MB
-const MAX_IMAGES_COUNT = 5;
+### Image Upload Limits
 
-// Supported MIME types
-const SUPPORTED_MIME_TYPES = [
-  'image/jpeg',
+Defined in `services/imageProcessingService.ts` (per-image limit in `App.tsx`):
+
+```typescript
+export const MAX_FILE_SIZE_BYTES = 5 * 1024 * 1024; // 5MB original-file cap
+
+const PASS_THROUGH_MAX_BYTES = 1.5 * 1024 * 1024;   // larger files are re-encoded
+const MAX_DIMENSION = 2000;                          // longest side after downscaling
+const JPEG_QUALITY = 0.9;
+
+export const GEMINI_SUPPORTED_MIME_TYPES = [
   'image/png',
-  'image/webp'
+  'image/jpeg',
+  'image/webp',
+  'image/heic',
+  'image/heif',
 ];
 ```
 
+- Up to 5 images per analysis (`maxImages={5}`)
+- Files over 1.5 MB (or in unsupported formats) are drawn to a canvas, downscaled to at most 2000px on the longest side, and re-encoded as JPEG so multi-image payloads stay within the serverless body limit
+- HEIC/HEIF files pass through untouched (Gemini accepts them; browsers cannot re-encode them)
+
 ### Prompt Configuration
 
-AI analysis prompts are configurable in `constants.ts`:
+AI prompts and the Gemini calls live in `shared/labelAnalysis.ts`, which is isomorphic: it runs in the browser (browser key) and in the serverless functions (server key).
 
 ```typescript
-// Base prompt for all categories
-const BASE_PROMPT = `
-You are an expert in U.S. Alcohol and Tobacco Tax and Trade Bureau (TTB) 
-alcohol beverage labeling regulations...
-`;
+export const GEMINI_MODEL = 'gemini-2.5-flash';
 
-// Category-specific prompts
-const DISTILLED_SPIRITS_REQUIREMENTS = `...`;
-const WINE_REQUIREMENTS = `...`;
-const MALT_BEVERAGES_REQUIREMENTS = `...`;
-
-// Dynamic prompt generation
-export const getCategorySpecificPrompt = (category: BeverageCategory): string => {
-  // Implementation
-};
+export const buildAnalysisPrompt = (req: AnalyzeRequest): string => { /* ... */ };
+export const buildComparisonPrompt = (req: CompareRequest): string => { /* ... */ };
 ```
 
-## Performance Configuration
-
-### Bundle Optimization
-
-**Code Splitting**:
-```typescript
-// Manual chunks in vite.config.ts
-manualChunks: {
-  vendor: ['react', 'react-dom'],
-  gemini: ['@google/genai'],
-  pdf: ['jspdf', 'jspdf-autotable'],
-  icons: ['lucide-react']
-}
-```
-
-**Tree Shaking**:
-- ES modules for optimal tree shaking
-- Selective imports where possible
-- Dead code elimination in production builds
-
-### Runtime Performance
-
-**Image Processing**:
-- Client-side compression
-- Base64 encoding limits
-- Memory cleanup for object URLs
-
-**API Optimization**:
-- Single request for multiple images
-- Request batching where applicable
-- Error retry mechanisms
+Both modes request structured JSON output via `responseMimeType: 'application/json'` and a `responseSchema`, so reports parse reliably. Request/response contracts are in `shared/analysisTypes.ts`.
 
 ## Security Configuration
 
 ### API Key Security
 
 **Best Practices**:
-- Use environment variables only
-- Different keys for different environments
-- Regular key rotation
-- Quota monitoring and alerts
+- Server key: environment variable only, set in the hosting dashboard; it is read at request time and never shipped to browsers
+- Browser key: stays in the user's `localStorage`; anyone with access to that browser profile can read it — remove it on shared machines
+- Use different keys for different environments
+- Rotate keys regularly and monitor quota
 
-**Key Validation**:
+**Key Status Check** (`services/geminiService.ts`):
+
 ```typescript
-export const getApiKeyStatus = (): { isConfigured: boolean; status: string } => {
-  if (!API_KEY || API_KEY === "MISSING_API_KEY") {
-    return {
-      isConfigured: false,
-      status: "API Key not configured"
-    };
+export const getApiKeyStatus = async (): Promise<ApiKeyStatus> => {
+  if (getLocalApiKey()) {
+    return { isConfigured: true, source: 'local' };
   }
-  return {
-    isConfigured: true,
-    status: "Gemini API configured"
-  };
+  if (await isServerKeyConfigured()) {  // GET /api/key-status
+    return { isConfigured: true, source: 'server' };
+  }
+  return { isConfigured: false, source: 'none' };
 };
 ```
+
+This presence check runs when the Settings menu loads; it makes **no** Gemini call. The "Test Connection" button performs a live test (one tiny Gemini request) on explicit user action only. The status text distinguishes "Server key configured" from "Your key (untested)".
 
 ### Content Security Policy
 
@@ -288,120 +220,54 @@ Content-Security-Policy:
   font-src 'self';
 ```
 
+`connect-src` needs `'self'` for the `/api` routes and the Google endpoint for direct browser-key calls.
+
 ## Deployment Configuration
 
 ### Vercel
 
-**`vercel.json` configuration**:
-```json
-{
-  "framework": "vite",
-  "buildCommand": "npm run build",
-  "outputDirectory": "dist",
-  "installCommand": "npm install",
-  "env": {
-    "API_KEY": "@api-key"
-  }
-}
-```
+No `vercel.json` is required — the framework preset and the `api/` functions are detected automatically.
 
 **Build Settings**:
 - Framework Preset: Vite
 - Build Command: `npm run build`
 - Output Directory: `dist`
-- Node.js Version: 18.x
+- Install Command: `npm install`
 
-### Netlify
+**Environment Variables**:
+1. Go to Project Settings → Environment Variables
+2. Add `GEMINI_API_KEY` (used only by the serverless functions at runtime; it does not need to exist at build time)
+3. Redeploy to apply changes
 
-**`netlify.toml` configuration**:
-```toml
-[build]
-  command = "npm run build"
-  publish = "dist"
+### Other Platforms
 
-[build.environment]
-  NODE_VERSION = "18"
+`npm run build` produces a plain static SPA in `dist/` that any static host can serve (with an SPA fallback to `index.html`). However, the `api/` functions are Vercel-specific: on Netlify, AWS Amplify, Azure Static Web Apps, GitHub Pages, or a plain web server the server-key path is unavailable, and users must supply their own key via the Settings menu — or you must port the three small handlers in `api/` to the platform's function format. Setting `GEMINI_API_KEY` as a build-time variable on these platforms does nothing.
 
-[[redirects]]
-  from = "/*"
-  to = "/index.html"
-  status = 200
-```
-
-### Static Hosting
-
-For generic static hosting:
-
-**Build Process**:
-1. `npm install`
-2. `npm run build`
-3. Upload `dist/` folder contents
-4. Configure environment variables through hosting platform
-
-**Server Configuration**:
-- Serve `index.html` for all routes (SPA)
-- Enable gzip compression
-- Set appropriate cache headers
+See the [Deployment Guide](./deployment.md) for details.
 
 ## Monitoring Configuration
 
 ### Analytics
 
-**Vercel Analytics**:
+Vercel Analytics is already wired up in `App.tsx`:
+
 ```typescript
 import { Analytics } from '@vercel/analytics/react';
 
-// Add to App component
+// Rendered at the root of the App component
 <Analytics />
 ```
 
-**Custom Tracking**:
-```typescript
-// Track custom events
-import { track } from '@vercel/analytics';
+### Health Check
 
-track('analysis_completed', {
-  category: beverageCategory,
-  imageCount: images.length
-});
-```
-
-### Error Tracking
-
-**Error Boundaries**:
-```typescript
-class ErrorBoundary extends React.Component {
-  constructor(props) {
-    super(props);
-    this.state = { hasError: false };
-  }
-
-  static getDerivedStateFromError(error) {
-    return { hasError: true };
-  }
-
-  componentDidCatch(error, errorInfo) {
-    // Log error to monitoring service
-    console.error('Error caught by boundary:', error, errorInfo);
-  }
-
-  render() {
-    if (this.state.hasError) {
-      return <h1>Something went wrong.</h1>;
-    }
-    return this.props.children;
-  }
-}
-```
+`GET /api/key-status` doubles as a lightweight health check for the serverless layer: it returns `{ "configured": true }` when the deployment has a key. Avoid automating `?test=1` — each call costs a real Gemini request.
 
 ## Development Configuration
 
 ### Development Server
 
-**Hot Module Replacement**:
-- Enabled by default with Vite
-- Preserves component state during updates
-- Fast refresh for React components
+- `npm run dev` — Vite dev server with HMR; serves the **front-end only**, so the `/api` routes are unavailable (use a browser key from Settings)
+- `vercel dev` — serves the front-end and the serverless functions together; requires the Vercel CLI, a linked project, and `GEMINI_API_KEY` in the environment
 
 **Debugging**:
 ```typescript
@@ -411,53 +277,12 @@ if (import.meta.env.DEV) {
 }
 ```
 
-### Testing Configuration
-
-**Jest Configuration** (if added):
-```javascript
-module.exports = {
-  testEnvironment: 'jsdom',
-  setupFilesAfterEnv: ['<rootDir>/src/setupTests.ts'],
-  moduleNameMapping: {
-    '\\.(css|less|scss|sass)$': 'identity-obj-proxy',
-  },
-  transform: {
-    '^.+\\.(ts|tsx)$': 'ts-jest',
-  },
-};
-```
-
 ## Customization Options
 
 ### Theming
 
-**Color Scheme**:
-- Light/dark mode support via Tailwind CSS
-- Custom color palette in theme configuration
-- System preference detection
+- Light/dark mode is class-based: `ThemeContext` toggles the `dark` class on `<html>`, matched by the `@custom-variant dark` rule in `index.css`
+- Extend colors, fonts, and spacing through the `@theme` block in `index.css` (Tailwind v4 CSS-first configuration)
+- Custom scrollbar, transition, and line-clamp styles also live in `index.css`
 
-**Layout**:
-- Responsive breakpoints
-- Component spacing
-- Typography scale
-
-### Feature Flags
-
-**Optional Features**:
-```typescript
-const FEATURE_FLAGS = {
-  enablePDFExport: true,
-  enableMultipleImages: true,
-  enableDarkMode: true,
-  enableAnalytics: true
-};
-```
-
-### Localization
-
-**Future Support**:
-- i18n framework integration
-- Multiple language support
-- Regional compliance variations
-
-This configuration guide provides comprehensive coverage of all configurable aspects of the Alcohol Label Compliance Analyzer application.
+This configuration guide covers all configurable aspects of the Alcohol Label Compliance Analyzer application.

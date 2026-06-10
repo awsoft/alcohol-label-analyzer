@@ -1,12 +1,5 @@
 import jsPDF from 'jspdf';
-import 'jspdf-autotable';
-import { ParsedAnalysis, ProductRequirements, KNOWN_SECTION_KEYS } from '../types';
-
-declare module 'jspdf' {
-  interface jsPDF {
-    autoTable: (options: any) => jsPDF;
-  }
-}
+import { AnalysisReport, ComplianceScore, ItemComplianceStatus } from '../shared/analysisTypes';
 
 // Helper function to load image as base64 with dimensions
 const loadImageAsBase64 = (src: string): Promise<{dataURL: string, width: number, height: number}> => {
@@ -31,10 +24,16 @@ const loadImageAsBase64 = (src: string): Promise<{dataURL: string, width: number
   });
 };
 
+const STATUS_LABELS: Record<ItemComplianceStatus, string> = {
+  COMPLIANT: 'COMPLIANT',
+  NON_COMPLIANT: 'NON-COMPLIANT',
+  POTENTIAL_ISSUE: 'POTENTIAL ISSUE',
+  NOT_REQUIRED: 'NOT REQUIRED',
+};
+
 export const generatePDFReport = async (
-  parsedAnalysis: ParsedAnalysis,
-  _productRequirements: ProductRequirements,
-  complianceScore?: { compliant: number; total: number; percentage: number }
+  report: AnalysisReport,
+  complianceScore?: ComplianceScore
 ): Promise<void> => {
   const doc = new jsPDF();
   const pageWidth = doc.internal.pageSize.width;
@@ -44,14 +43,14 @@ export const generatePDFReport = async (
   // Helper function to add text with wrapping - MANUAL CHARACTER-BASED wrapping (bypass jsPDF splitTextToSize)
   const addWrappedText = (text: string, x: number, y: number, _maxWidth: number, fontSize: number = 10, isBold: boolean = false): number => {
     if (!text || text.trim() === '') return y;
-    
+
     // Clean text of problematic characters
     const cleanText = text.replace(/[^\x20-\x7E\n\r]/g, ' ').replace(/\s+/g, ' ').trim();
     if (!cleanText) return y;
-    
+
     doc.setFontSize(fontSize);
     doc.setFont('helvetica', isBold ? 'bold' : 'normal');
-    
+
     // COMPLETELY BYPASS jsPDF's splitTextToSize - do manual character-based wrapping
     // Use conservative character limits based on font size
     let maxCharsPerLine: number;
@@ -62,20 +61,20 @@ export const generatePDFReport = async (
     } else {
       maxCharsPerLine = 60;
     }
-    
+
     // If bold, reduce character count further
     if (isBold) {
       maxCharsPerLine = Math.floor(maxCharsPerLine * 0.85);
     }
-    
+
     // Split text into lines manually by character count
     const words = cleanText.split(' ');
     const lines: string[] = [];
     let currentLine = '';
-    
+
     for (const word of words) {
       const testLine = currentLine ? `${currentLine} ${word}` : word;
-      
+
       if (testLine.length <= maxCharsPerLine) {
         currentLine = testLine;
       } else {
@@ -89,21 +88,21 @@ export const generatePDFReport = async (
         }
       }
     }
-    
+
     if (currentLine) {
       lines.push(currentLine);
     }
-    
+
     let currentY = y;
     const lineHeight = fontSize * 1.2;
     const pageHeight = doc.internal.pageSize.height;
-    
+
     // Check if we need a page break
     if (currentY + (lines.length * lineHeight) > pageHeight - 50) {
       doc.addPage();
       currentY = 40;
     }
-    
+
     // Add each line
     for (let i = 0; i < lines.length; i++) {
       if (currentY > pageHeight - 50) {
@@ -113,7 +112,7 @@ export const generatePDFReport = async (
       doc.text(lines[i], x, currentY);
       currentY += lineHeight;
     }
-    
+
     return currentY + 5;
   };
 
@@ -129,19 +128,19 @@ export const generatePDFReport = async (
   // Add clean header with properly sized logo
   try {
     const logoData = await loadImageAsBase64('/assets/images/aardwolf-logo-light.png');
-    
+
     // Calculate proportional dimensions - target height of 20px for good balance
     const targetHeight = 20;
     const aspectRatio = logoData.width / logoData.height;
     const logoWidth = targetHeight * aspectRatio;
     const logoHeight = targetHeight;
-    
+
     // Center logo horizontally
     const logoX = (pageWidth - logoWidth) / 2;
-    
+
     // Add logo to PDF (centered, appropriately sized)
     doc.addImage(logoData.dataURL, 'PNG', logoX, 15, logoWidth, logoHeight);
-    
+
     yPosition = 45;
   } catch (error) {
     console.warn('Failed to load logo for PDF, using text fallback:', error);
@@ -150,7 +149,7 @@ export const generatePDFReport = async (
     doc.setFontSize(16);
     doc.setFont('helvetica', 'bold');
     doc.text('AARDWOLF', pageWidth / 2, 25, { align: 'center' });
-    
+
     yPosition = 35;
   }
 
@@ -167,162 +166,108 @@ export const generatePDFReport = async (
   doc.setFont('helvetica', 'bold');
   doc.text('TTB Compliance Analysis Report', margin, yPosition);
   yPosition += 15;
-  
+
   doc.setFontSize(10);
   doc.setFont('helvetica', 'normal');
   doc.text(`Generated: ${new Date().toLocaleString()}`, margin, yPosition);
   yPosition += 20;
 
   // Overview Section
-  if (parsedAnalysis.overview) {
-    yPosition = checkPageBreak(40);
-    
-    yPosition = addWrappedText('Compliance Status Overview', margin, yPosition, pageWidth - 120, 14, true);
-    yPosition += 5;
+  yPosition = checkPageBreak(40);
+  yPosition = addWrappedText('Compliance Status Overview', margin, yPosition, pageWidth - 120, 14, true);
+  yPosition += 5;
 
-    // Status with colored background
-    const status = parsedAnalysis.overview.status;
-    let statusColor: [number, number, number] = [128, 128, 128]; // Default gray
-    
-    switch (status) {
-      case 'Compliant':
-        statusColor = [34, 197, 94]; // Green
-        break;
-      case 'Partially Compliant':
-        statusColor = [234, 179, 8]; // Yellow
-        break;
-      case 'Non-Compliant':
-        statusColor = [239, 68, 68]; // Red
-        break;
-    }
+  // Status with colored background
+  let statusColor: [number, number, number] = [128, 128, 128]; // Default gray
+  switch (report.overallStatus) {
+    case 'Compliant':
+      statusColor = [34, 197, 94]; // Green
+      break;
+    case 'Partially Compliant':
+      statusColor = [234, 179, 8]; // Yellow
+      break;
+    case 'Non-Compliant':
+      statusColor = [239, 68, 68]; // Red
+      break;
+  }
 
-    doc.setFillColor(...statusColor);
-    doc.roundedRect(margin, yPosition, 100, 8, 2, 2, 'F');
-    doc.setTextColor(255, 255, 255);
-    doc.setFontSize(10);
-    doc.setFont('helvetica', 'bold');
-    doc.text(status, margin + 5, yPosition + 5);
-    
-    // Compliance score
-    if (complianceScore) {
-      doc.setTextColor(0, 0, 0);
-      doc.text(`Score: ${complianceScore.compliant}/${complianceScore.total} (${complianceScore.percentage}%)`, margin + 110, yPosition + 5);
-    }
-    
-    yPosition += 20;
+  doc.setFillColor(...statusColor);
+  doc.roundedRect(margin, yPosition, 100, 8, 2, 2, 'F');
+  doc.setTextColor(255, 255, 255);
+  doc.setFontSize(10);
+  doc.setFont('helvetica', 'bold');
+  doc.text(report.overallStatus, margin + 5, yPosition + 5);
+
+  // Compliance score
+  if (complianceScore && complianceScore.total > 0) {
     doc.setTextColor(0, 0, 0);
+    doc.text(`Score: ${complianceScore.compliant}/${complianceScore.total} (${complianceScore.percentage}%)`, margin + 110, yPosition + 5);
+  }
 
-    // Key Issues
-    if (parsedAnalysis.overview.keyIssues && parsedAnalysis.overview.keyIssues.length > 0) {
-      yPosition = addWrappedText('Key Issues Identified:', margin, yPosition, pageWidth - 120, 12, true);
-      yPosition += 3;
-      
-      parsedAnalysis.overview.keyIssues.forEach((issue) => {
-        yPosition = checkPageBreak(15);
-        yPosition = addWrappedText('• ' + issue, margin + 5, yPosition, pageWidth - 140, 10, false);
-      });
-      yPosition += 10;
-    }
+  yPosition += 20;
+  doc.setTextColor(0, 0, 0);
+
+  // Key Issues
+  if (report.keyIssues.length > 0) {
+    yPosition = addWrappedText('Key Issues Identified:', margin, yPosition, pageWidth - 120, 12, true);
+    yPosition += 3;
+
+    report.keyIssues.forEach((issue) => {
+      yPosition = checkPageBreak(15);
+      yPosition = addWrappedText('- ' + issue, margin + 5, yPosition, pageWidth - 140, 10, false);
+    });
+    yPosition += 10;
+  }
+
+  // Summary Section
+  if (report.summary) {
+    yPosition = checkPageBreak(40);
+    yPosition = addWrappedText('Overall TTB Compliance Summary', margin, yPosition, pageWidth - 120, 14, true);
+    yPosition += 10;
+    yPosition = addWrappedText(report.summary, margin, yPosition, pageWidth - 120, 10, false);
+    yPosition += 10;
   }
 
   // Mandatory Information Section
-  const mandatorySection = parsedAnalysis.sections.find(section => section.key === KNOWN_SECTION_KEYS.MANDATORY);
-  if (mandatorySection && mandatorySection.items) {
+  if (report.mandatoryItems.length > 0) {
     yPosition = checkPageBreak(40);
-    
     yPosition = addWrappedText('TTB Mandatory Label Information', margin, yPosition, pageWidth - 120, 14, true);
     yPosition += 10;
 
-    mandatorySection.items.forEach((item, index) => {
+    report.mandatoryItems.forEach((item, index) => {
       yPosition = checkPageBreak(30);
-      
-      // Item title
-      yPosition = addWrappedText(`${index + 1}. ${item.title}`, margin, yPosition, pageWidth - 120, 11, true);
+
+      yPosition = addWrappedText(`${index + 1}. ${item.title} — ${STATUS_LABELS[item.status] ?? item.status}`, margin, yPosition, pageWidth - 120, 11, true);
       yPosition += 5;
-      
-      item.details.forEach((detail) => {
-        yPosition = checkPageBreak(20);
-        
-        // Clean the value text (remove markdown and icons)
-        let cleanValue = detail.value
-          .replace(/\*\*(.*?)\*\*/g, '$1') // Remove bold markdown
-          .replace(/✅|❌|⚠️|ℹ️/g, '') // Remove emoji icons
-          .replace(/\s+/g, ' ') // Normalize whitespace
-          .trim();
 
-        // Add compliance status indicator and format compliance notes
-        if (detail.isComplianceNote) {
-          let statusIndicator = '';
-          const lowerValue = cleanValue.toLowerCase();
-          if (lowerValue.includes('compliant') && !lowerValue.includes('non-compliant')) {
-            statusIndicator = '✓ COMPLIANT: ';
-          } else if (lowerValue.includes('non-compliant') || lowerValue.includes('missing') || lowerValue.includes('required')) {
-            statusIndicator = '✗ NOT REQUIRED: ';
-          } else if (lowerValue.includes('partial')) {
-            statusIndicator = '⚠ PARTIAL: ';
-          }
-          // Clean up repetitive text
-          cleanValue = cleanValue.replace(/TTB Compliance Notes:\s*/i, '');
-          cleanValue = statusIndicator + cleanValue;
-        }
+      yPosition = addWrappedText('On the label:', margin + 10, yPosition, pageWidth - 150, 9, true);
+      yPosition = addWrappedText(item.finding, margin + 15, yPosition, pageWidth - 160, 9, false);
+      yPosition += 3;
 
-        // Format label and value with proper wrapping - use very conservative widths
-        yPosition = addWrappedText(`${detail.label}:`, margin + 10, yPosition, pageWidth - 150, 9, true);
-        yPosition = addWrappedText(cleanValue, margin + 15, yPosition, pageWidth - 160, 9, false);
-        yPosition += 3;
-      });
-      
+      yPosition = addWrappedText('TTB Compliance Notes:', margin + 10, yPosition, pageWidth - 150, 9, true);
+      yPosition = addWrappedText(item.notes, margin + 15, yPosition, pageWidth - 160, 9, false);
       yPosition += 8;
     });
   }
 
   // Observations Section
-  const observationsSection = parsedAnalysis.sections.find(section => section.key === KNOWN_SECTION_KEYS.OBSERVATIONS);
-  if (observationsSection && observationsSection.observationSubSections) {
+  const observations = report.observations.filter(obs => obs.points.length > 0);
+  if (observations.length > 0) {
     yPosition = checkPageBreak(40);
-    
     yPosition = addWrappedText('Other TTB Compliance Observations', margin, yPosition, pageWidth - 120, 14, true);
     yPosition += 10;
 
-    observationsSection.observationSubSections.forEach((subSection) => {
+    observations.forEach((observation) => {
       yPosition = checkPageBreak(25);
-      
-      yPosition = addWrappedText(subSection.title, margin, yPosition, pageWidth - 120, 12, true);
+      yPosition = addWrappedText(observation.title, margin, yPosition, pageWidth - 120, 12, true);
       yPosition += 5;
-      
-      subSection.points.forEach((point) => {
-        yPosition = checkPageBreak(15);
-        // Clean the point text
-        const cleanPoint = point
-          .replace(/\*\*(.*?)\*\*/g, '$1')
-          .replace(/✅|❌|⚠️|ℹ️/g, '')
-          .replace(/\s+/g, ' ')
-          .trim();
-        yPosition = addWrappedText('• ' + cleanPoint, margin + 5, yPosition, pageWidth - 140, 10, false);
-      });
-      
-      yPosition += 10;
-    });
-  }
 
-  // Summary Section
-  const summarySection = parsedAnalysis.sections.find(section => section.key === KNOWN_SECTION_KEYS.SUMMARY);
-  if (summarySection && summarySection.freeTextContent) {
-    yPosition = checkPageBreak(40);
-    
-    yPosition = addWrappedText('Overall TTB Compliance Summary', margin, yPosition, pageWidth - 120, 14, true);
-    yPosition += 10;
-    
-    summarySection.freeTextContent.forEach((content) => {
-      yPosition = checkPageBreak(20);
-      // Clean markdown and format text
-      const cleanContent = content
-        .replace(/\*\*(.*?)\*\*/g, '$1')
-        .replace(/✅|❌|⚠️|ℹ️/g, '')
-        .replace(/\s+/g, ' ')
-        .trim();
-      yPosition = addWrappedText(cleanContent, margin, yPosition, pageWidth - 120, 10, false);
-      yPosition += 5;
+      observation.points.forEach((point) => {
+        yPosition = checkPageBreak(15);
+        yPosition = addWrappedText('- ' + point, margin + 5, yPosition, pageWidth - 140, 10, false);
+      });
+
+      yPosition += 10;
     });
   }
 
@@ -331,14 +276,14 @@ export const generatePDFReport = async (
   if (yPosition < doc.internal.pageSize.height - 60) {
     yPosition = doc.internal.pageSize.height - 50;
   }
-  
+
   doc.setFontSize(8);
   doc.setFont('helvetica', 'normal');
   doc.setTextColor(128, 128, 128);
   doc.text('This report was generated by Aardwolf Alcohol Label Compliance Analyzer', margin, yPosition);
   doc.text(`© ${new Date().getFullYear()} Aardwolf. All rights reserved.`, margin, yPosition + 8);
   yPosition += 16;
-  
+
   // TTB Disclaimer
   doc.setFontSize(7);
   doc.setFont('helvetica', 'bold');
@@ -352,4 +297,4 @@ export const generatePDFReport = async (
 
   // Save the PDF
   doc.save(filename);
-}; 
+};

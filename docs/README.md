@@ -7,7 +7,8 @@ The Alcohol Label Compliance Analyzer is a React-based web application that leve
 ## Key Features
 
 - **Multi-Image Analysis**: Upload multiple label images (front, back, neck, side labels) for comprehensive analysis
-- **AI-Powered Analysis**: Uses Google Gemini 2.5 Flash Preview for intelligent compliance checking
+- **AI-Powered Analysis**: Uses Google Gemini 2.5 Flash with structured JSON output for reliable, consistent reports
+- **Label Change Comparison**: Compare a current (approved) label against a proposed revision to determine whether a new TTB submission is required
 - **Category-Specific Analysis**: Supports three beverage categories with tailored requirements:
   - Distilled Spirits
   - Wine (including cider and mead)
@@ -15,7 +16,7 @@ The Alcohol Label Compliance Analyzer is a React-based web application that leve
 - **Product Requirements Configuration**: Specify ingredients like sulfites, FD&C Yellow #5, and aspartame
 - **PDF Report Generation**: Export detailed compliance reports as PDF documents
 - **Modern UI**: Clean, responsive interface with dark mode support
-- **Real-time Results**: Get instant feedback on label compliance
+- **Flexible API Key Handling**: Analysis runs through the app's server-side Gemini key by default, or through your own key added in the Settings menu
 
 ## Documentation Structure
 
@@ -47,26 +48,27 @@ This documentation is organized into several sections:
    npm install
    ```
 
-2. **Configure Environment**:
-   Create a `.env.local` file with your Gemini API key:
-   ```bash
-   API_KEY=your_gemini_api_key_here
-   ```
-
-3. **Start Development Server**:
+2. **Start Development Server**:
    ```bash
    npm run dev
    ```
+
+3. **Provide a Gemini API Key** (one of):
+   - Open the app, click the gear icon (Settings), and add your own Gemini API key — it stays in your browser and calls Gemini directly, or
+   - Run `vercel dev` with `GEMINI_API_KEY` set in the environment, which serves the front-end together with the serverless `/api` functions that hold the key server-side.
+
+   Note: plain `npm run dev` serves only the front-end (no `/api` routes), and the key is never bundled into the client — a `.env.local` file has no effect on the browser build.
 
 4. **Open Application**:
    Navigate to `http://localhost:5173` in your browser
 
 ## Technology Stack
 
-- **Frontend**: React 19, TypeScript, Tailwind CSS
+- **Frontend**: React 19, TypeScript, Tailwind CSS v4
 - **Build Tool**: Vite
-- **AI Service**: Google Gemini API
-- **PDF Generation**: jsPDF with autoTable
+- **AI Service**: Google Gemini API (`@google/genai`, structured JSON output)
+- **Serverless**: Vercel Functions (`api/` directory)
+- **PDF Generation**: jsPDF
 - **Icons**: Lucide React
 - **Analytics**: Vercel Analytics
 

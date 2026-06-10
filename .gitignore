@@ -22,3 +22,6 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Claude Code personal settings (launch.json is shared)
+.claude/settings.local.json

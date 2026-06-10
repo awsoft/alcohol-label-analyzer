@@ -1,31 +1,36 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Settings, CheckCircle, XCircle } from 'lucide-react';
-import { testApiConnection } from '../services/geminiService';
+import { testApiConnection, getApiKeyStatus, getLocalApiKey, ApiKeySource } from '../services/geminiService';
 import { APP_VERSION } from '../constants';
 
 interface SettingsDropdownProps {
-  analysisStatus?: string;
+  onApiKeyChange?: () => void;
 }
 
 export const SettingsDropdown: React.FC<SettingsDropdownProps> = ({
-  analysisStatus = "Ready"
+  onApiKeyChange
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [apiKey, setApiKey] = useState('');
   const [showApiKeyInput, setShowApiKeyInput] = useState(false);
-  const [apiStatus, setApiStatus] = useState<'checking' | 'connected' | 'error' | 'not-configured'>('not-configured');
+  const [apiStatus, setApiStatus] = useState<'checking' | 'connected' | 'error' | 'not-configured' | 'configured'>('checking');
+  const [keySource, setKeySource] = useState<ApiKeySource>('none');
   const dropdownRef = useRef<HTMLDivElement>(null);
 
-  // Load API key from localStorage on mount and test connection
+  // Presence check only (localStorage + a cheap /api/key-status lookup) —
+  // a real connection test costs a Gemini API call, so it stays user-initiated.
+  const refreshStatus = async () => {
+    const status = await getApiKeyStatus();
+    setKeySource(status.source);
+    setApiStatus(status.isConfigured ? 'configured' : 'not-configured');
+  };
+
   useEffect(() => {
-    const savedApiKey = localStorage.getItem('alcohol-label-analyzer-api-key');
+    const savedApiKey = getLocalApiKey();
     if (savedApiKey) {
       setApiKey(savedApiKey);
-      testConnection();
-    } else {
-      // Check if environment variable is available
-      testConnection();
     }
+    refreshStatus();
   }, []);
 
   const testConnection = async () => {
@@ -56,6 +61,7 @@ export const SettingsDropdown: React.FC<SettingsDropdownProps> = ({
     if (apiKey.trim()) {
       localStorage.setItem('alcohol-label-analyzer-api-key', apiKey.trim());
       setShowApiKeyInput(false);
+      onApiKeyChange?.();
       await testConnection();
     }
   };
@@ -64,7 +70,9 @@ export const SettingsDropdown: React.FC<SettingsDropdownProps> = ({
     setApiKey('');
     localStorage.removeItem('alcohol-label-analyzer-api-key');
     setShowApiKeyInput(false);
-    setApiStatus('not-configured');
+    // The server may still have a key configured even after the local one is removed
+    refreshStatus();
+    onApiKeyChange?.();
   };
 
   const hasApiKey = apiKey.trim().length > 0;
@@ -75,6 +83,12 @@ export const SettingsDropdown: React.FC<SettingsDropdownProps> = ({
         return { icon: 'checking', text: 'Checking...', color: 'text-yellow-500' };
       case 'connected':
         return { icon: 'success', text: 'Connected', color: 'text-green-500' };
+      case 'configured':
+        return {
+          icon: 'success',
+          text: keySource === 'server' ? 'Server key configured' : 'Your key (untested)',
+          color: 'text-green-500',
+        };
       case 'error':
         return { icon: 'error', text: 'Connection failed', color: 'text-red-500' };
       case 'not-configured':
@@ -181,7 +195,7 @@ export const SettingsDropdown: React.FC<SettingsDropdownProps> = ({
           <div className="p-4 border-t border-slate-200 dark:border-slate-700">
             <div className="flex justify-between items-center">
               <p className="text-xs text-slate-500 dark:text-slate-400">
-                API key is stored locally in your browser and never sent to our servers.
+                A key you add here stays in this browser and calls Gemini directly — it is never sent to our servers. Without one, analysis runs through this app's server.
               </p>
               <p className="text-xs text-slate-400 dark:text-slate-500 font-mono">
                 v{APP_VERSION}

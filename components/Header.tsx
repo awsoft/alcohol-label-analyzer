@@ -1,44 +1,14 @@
-import React, { useState, useEffect } from 'react';
-import { ShieldCheck } from 'lucide-react';
+import React from 'react';
 import { SettingsDropdown } from './SettingsDropdown';
+import { useTheme } from '../contexts/ThemeContext';
 
 interface HeaderProps {
-  analysisStatus?: string;
+  onApiKeyChange?: () => void;
 }
 
-export const Header: React.FC<HeaderProps> = ({ 
-  analysisStatus = "Ready"
-}) => {
-  const [isDarkMode, setIsDarkMode] = useState(false);
-
-  // Check for saved theme preference or default to light mode
-  useEffect(() => {
-    const savedTheme = localStorage.getItem('theme');
-    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-    
-    if (savedTheme === 'dark' || (!savedTheme && prefersDark)) {
-      setIsDarkMode(true);
-      document.documentElement.classList.add('dark');
-    } else {
-      setIsDarkMode(false);
-      document.documentElement.classList.remove('dark');
-    }
-  }, []);
-
-  const toggleTheme = () => {
-    const newDarkMode = !isDarkMode;
-    setIsDarkMode(newDarkMode);
-    
-    if (newDarkMode) {
-      document.documentElement.classList.add('dark');
-      localStorage.setItem('theme', 'dark');
-      document.body.className = 'bg-slate-900 text-slate-100';
-    } else {
-      document.documentElement.classList.remove('dark');
-      localStorage.setItem('theme', 'light');
-      document.body.className = 'bg-slate-100 text-slate-800';
-    }
-  };
+export const Header: React.FC<HeaderProps> = ({ onApiKeyChange }) => {
+  const { theme, toggleTheme } = useTheme();
+  const isDarkMode = theme === 'dark';
 
   return (
     <header className={`sticky top-0 z-40 ${isDarkMode ? 'bg-slate-900/80' : 'bg-white/80'} backdrop-blur-lg border-b ${isDarkMode ? 'border-slate-700' : 'border-slate-200'}`}>
@@ -56,7 +26,7 @@ export const Header: React.FC<HeaderProps> = ({
                 />
               </a>
             </div>
-            
+
             <div className={`border-l ${isDarkMode ? 'border-slate-600' : 'border-slate-300'} pl-3`}>
               <h1 className={`text-xl font-bold ${isDarkMode ? 'text-slate-100' : 'text-slate-900'}`}>
                 Label Check
@@ -84,7 +54,7 @@ export const Header: React.FC<HeaderProps> = ({
                 </svg>
               )}
             </button>
-            <SettingsDropdown analysisStatus={analysisStatus} />
+            <SettingsDropdown onApiKeyChange={onApiKeyChange} />
           </div>
         </div>
       </div>

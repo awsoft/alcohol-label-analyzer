@@ -1,6 +1,7 @@
 import React, { useCallback, useState } from 'react';
 import { UploadCloud, XCircle } from 'lucide-react';
 import { LabelImage, LabelType, LABEL_TYPES } from '../types';
+import { prepareImageForAnalysis } from '../services/imageProcessingService';
 
 interface MultiImageUploaderProps {
   images: LabelImage[];
@@ -8,69 +9,6 @@ interface MultiImageUploaderProps {
   disabled?: boolean;
   maxImages?: number;
 }
-
-const MAX_FILE_SIZE_BYTES = 5 * 1024 * 1024; // 5MB
-
-// Gemini supported MIME types
-const GEMINI_SUPPORTED_MIME_TYPES = [
-  'image/png',
-  'image/jpeg',
-  'image/webp',
-  'image/heic',
-  'image/heif',
-];
-
-const CONVERSION_TARGET_MIME_TYPE = 'image/png';
-
-const convertImageToSupportedFormat = (
-  file: File,
-  targetMimeType: 'image/png' | 'image/jpeg' = 'image/png'
-): Promise<{ base64: string; mimeType: string; previewUrl: string }> => {
-  return new Promise((resolve, reject) => {
-    if (file.size > MAX_FILE_SIZE_BYTES) {
-      return reject(new Error(`File is too large for conversion (${(file.size / (1024*1024)).toFixed(2)}MB). Max 5MB.`));
-    }
-
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      const img = new Image();
-      img.onload = () => {
-        const canvas = document.createElement('canvas');
-        canvas.width = img.width;
-        canvas.height = img.height;
-        const ctx = canvas.getContext('2d');
-        if (!ctx) {
-          return reject(new Error('Failed to get canvas context for image conversion.'));
-        }
-        ctx.drawImage(img, 0, 0, img.width, img.height);
-        try {
-          const dataUrl = canvas.toDataURL(targetMimeType);
-          const base64 = dataUrl.split(',')[1];
-          if (!base64) {
-            return reject(new Error('Failed to extract base64 data from converted image.'));
-          }
-          resolve({
-            base64,
-            mimeType: targetMimeType,
-            previewUrl: dataUrl,
-          });
-        } catch (e) {
-          console.error("Canvas toDataURL error:", e);
-          reject(new Error(`Failed to convert image to ${targetMimeType}. The image format might be corrupt or highly unusual.`));
-        }
-      };
-      img.onerror = () => reject(new Error('Failed to load image for conversion. It might be corrupt or an unsupported format by the browser.'));
-      
-      if (event.target?.result) {
-        img.src = event.target.result as string;
-      } else {
-        reject(new Error('FileReader did not successfully read the file for conversion.'));
-      }
-    };
-    reader.onerror = () => reject(new Error('Failed to read file using FileReader for conversion.'));
-    reader.readAsDataURL(file);
-  });
-};
 
 export const MultiImageUploader: React.FC<MultiImageUploaderProps> = ({ 
   images, 
@@ -85,72 +23,45 @@ export const MultiImageUploader: React.FC<MultiImageUploaderProps> = ({
   const generateId = () => `img_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 
   const processFile = async (file: File, labelType: LabelType): Promise<LabelImage> => {
-    const id = generateId();
-    
-    if (file.size > MAX_FILE_SIZE_BYTES) {
-      throw new Error(`File is too large (${(file.size / (1024*1024)).toFixed(2)}MB). Maximum allowed size is 5MB.`);
-    }
-
-    if (GEMINI_SUPPORTED_MIME_TYPES.includes(file.type)) {
-      return new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onloadend = () => {
-          const fullDataUrl = reader.result as string;
-          const base64 = fullDataUrl.split(',')[1];
-          resolve({
-            id,
-            file,
-            labelType,
-            base64,
-            mimeType: file.type,
-            previewUrl: fullDataUrl,
-          });
-        };
-        reader.onerror = () => reject(new Error("Failed to read the image file."));
-        reader.readAsDataURL(file);
-      });
-    } else {
-      const converted = await convertImageToSupportedFormat(file, CONVERSION_TARGET_MIME_TYPE);
-      return {
-        id,
-        file,
-        labelType,
-        base64: converted.base64,
-        mimeType: converted.mimeType,
-        previewUrl: converted.previewUrl,
-      };
-    }
+    const prepared = await prepareImageForAnalysis(file);
+    return {
+      id: generateId(),
+      file,
+      labelType,
+      base64: prepared.base64,
+      mimeType: prepared.mimeType,
+      previewUrl: prepared.previewUrl,
+    };
   };
 
   const handleFilesAdd = useCallback(async (files: FileList, labelType: LabelType = 'front') => {
     if (disabled) return;
-    
+
     const fileArray = Array.from(files);
     const availableSlots = maxImages - images.length;
     const filesToProcess = fileArray.slice(0, availableSlots);
-    
+
     if (fileArray.length > availableSlots) {
-      const newErrors = new Map(errors);
-      newErrors.set('maxImages', `Can only add ${availableSlots} more images (maximum ${maxImages} total)`);
-      setErrors(newErrors);
+      setErrors(prev => new Map(prev).set('maxImages', `Can only add ${availableSlots} more images (maximum ${maxImages} total)`));
+    } else {
+      setErrors(prev => {
+        if (!prev.has('maxImages')) return prev;
+        const next = new Map(prev);
+        next.delete('maxImages');
+        return next;
+      });
     }
 
+    const addedImages: LabelImage[] = [];
     for (const file of filesToProcess) {
       const fileId = generateId();
       setProcessingFiles(prev => new Set([...prev, fileId]));
-      
+
       try {
         const labelImage = await processFile(file, labelType);
-        onImagesChange([...images, labelImage]);
-        
-        // Clear any previous errors for this file
-        const newErrors = new Map(errors);
-        newErrors.delete(fileId);
-        setErrors(newErrors);
+        addedImages.push(labelImage);
       } catch (error: any) {
-        const newErrors = new Map(errors);
-        newErrors.set(fileId, error.message);
-        setErrors(newErrors);
+        setErrors(prev => new Map(prev).set(fileId, error.message));
       } finally {
         setProcessingFiles(prev => {
           const newSet = new Set(prev);
@@ -159,7 +70,11 @@ export const MultiImageUploader: React.FC<MultiImageUploaderProps> = ({
         });
       }
     }
-  }, [images, onImagesChange, disabled, maxImages, errors]);
+
+    if (addedImages.length > 0) {
+      onImagesChange([...images, ...addedImages]);
+    }
+  }, [images, onImagesChange, disabled, maxImages]);
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>, labelType: LabelType) => {
     const files = event.target.files;
