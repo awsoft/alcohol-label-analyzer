@@ -9,13 +9,16 @@
 import {
   runLabelAnalysis,
   runLabelComparison,
+  runLabelVerification,
   testGeminiConnection,
 } from '../shared/labelAnalysis';
 import {
   AnalyzeRequest,
   CompareRequest,
+  VerifyRequest,
   AnalysisReport,
   ComparisonReport,
+  VerificationReport,
 } from '../shared/analysisTypes';
 
 const STORAGE_KEY = 'alcohol-label-analyzer-api-key';
@@ -117,4 +120,12 @@ export const compareLabels = async (request: CompareRequest): Promise<Comparison
     return runLabelComparison(localKey, request);
   }
   return postToApi<ComparisonReport>('/api/compare', request);
+};
+
+export const verifyLabel = async (request: VerifyRequest): Promise<VerificationReport> => {
+  const localKey = getLocalApiKey();
+  if (localKey) {
+    return runLabelVerification(localKey, request);
+  }
+  return postToApi<VerificationReport>('/api/verify', request);
 };

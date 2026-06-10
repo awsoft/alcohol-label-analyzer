@@ -55,6 +55,33 @@ Compares current vs. proposed label versions.
 - `400` — either image list missing, empty, or invalid; or missing `beverageCategory`
 - `502` — the Gemini call failed
 
+### `POST /api/verify`
+
+Verifies a label image against the COLA application data the applicant filed, field by field.
+
+**Request body** (`VerifyRequest`):
+```json
+{
+  "images": [{ "base64": "<image data>", "mimeType": "image/jpeg" }],
+  "application": {
+    "brandName": "OLD TOM DISTILLERY",
+    "classType": "Kentucky Straight Bourbon Whiskey",
+    "alcoholContent": "45% Alc./Vol. (90 Proof)",
+    "netContents": "750 mL",
+    "bottlerName": "Old Tom Distillery Co., Bardstown, KY"
+  },
+  "beverageCategory": "distilled-spirits"
+}
+```
+
+`bottlerName` and `countryOfOrigin` are optional; the other four application fields are required and must be non-empty.
+
+**Responses:**
+- `200` — a `VerificationReport` (see Type Definitions). Its `overallResult` is derived deterministically in code from the field and warning statuses — it is not model-generated.
+- `405` / `503` — as above
+- `400` — missing/empty/invalid `images`; application data missing any of brand name, class/type, alcohol content, or net contents; or missing `beverageCategory`
+- `502` — the Gemini call failed
+
 ### `GET /api/key-status`
 
 Reports whether the server has a Gemini key configured. Costs no Gemini call unless `?test=1` is passed.
@@ -82,6 +109,14 @@ async function analyzeLabels(request: AnalyzeRequest): Promise<AnalysisReport>
 ```typescript
 async function compareLabels(request: CompareRequest): Promise<ComparisonReport>
 ```
+
+#### `verifyLabel()`
+
+```typescript
+async function verifyLabel(request: VerifyRequest): Promise<VerificationReport>
+```
+
+Same key-resolution pattern as the other two: a local key calls Gemini directly via `runLabelVerification()`; otherwise the request is POSTed to `/api/verify`.
 
 **Server-path payload cap:** when routing through `/api`, the JSON body is capped at ~4.2MB (Vercel rejects bodies over ~4.5MB). Oversized requests throw a friendly error suggesting fewer/smaller images or a personal API key. The cap does not apply on the direct (local-key) path.
 
@@ -173,6 +208,18 @@ async function runLabelComparison(apiKey: string, request: CompareRequest): Prom
 
 Same pattern, with current images first, then proposed images, then the comparison prompt. Throws if either image list is empty.
 
+#### `runLabelVerification()`
+
+```typescript
+async function runLabelVerification(
+  apiKey: string,
+  request: VerifyRequest,
+  modelOverride?: string
+): Promise<VerificationReport>
+```
+
+Same pattern, against `GEMINI_VERIFY_MODEL` (or `modelOverride`) with the verification `responseSchema`. The model returns only `fields`, `warningStatement`, and `imageQualityNote`; the runner then computes `overallResult` with `deriveOverallResult()` rather than trusting the model with the verdict. Throws if `request.images` is empty or any required application field (brand name, class/type, alcohol content, net contents) is blank.
+
 #### `testGeminiConnection()`
 
 ```typescript
@@ -194,13 +241,23 @@ Maps raw SDK errors to user-presentable messages (invalid key, quota exceeded, g
 ```typescript
 function buildAnalysisPrompt(req: AnalyzeRequest): string
 function buildComparisonPrompt(req: CompareRequest): string
+function buildVerificationPrompt(req: VerifyRequest): string
 ```
 
-#### `GEMINI_MODEL`
+The verification prompt embeds the application data and the match-judgment rules (capitalization/punctuation/spacing differences still MATCH; equivalent expressions match, e.g. "45% Alc./Vol." = "90 Proof", "750 mL" = "75 cl"), and checks the Government Warning against `GOVERNMENT_WARNING_TEXT`.
+
+#### `GEMINI_MODEL` / `GEMINI_VERIFY_MODEL`
 
 ```typescript
-const GEMINI_MODEL = 'gemini-3.5-flash';
+const GEMINI_MODEL = 'gemini-3.5-flash';              // analysis and comparison
+const GEMINI_VERIFY_MODEL = 'gemini-3.1-flash-lite';  // application verification
 ```
+
+Verification is latency-critical, so it runs on the lite model: benchmarked at 2–3 seconds per label versus 6–12 seconds for `gemini-3.5-flash`, with identical verdicts on match, mismatch, and warning-formatting test cases.
+
+#### `GOVERNMENT_WARNING_TEXT`
+
+The exact Government Health Warning wording as a single string. The verification prompt embeds it for the word-for-word check.
 
 ## Type Definitions
 
@@ -227,6 +284,21 @@ interface ComparisonImage {
 interface CompareRequest {
   currentImages: ComparisonImage[];
   proposedImages: ComparisonImage[];
+  beverageCategory: BeverageCategory;
+}
+
+interface ApplicationData {
+  brandName: string;        // required
+  classType: string;        // required
+  alcoholContent: string;   // required
+  netContents: string;      // required
+  bottlerName?: string;
+  countryOfOrigin?: string;
+}
+
+interface VerifyRequest {
+  images: ComparisonImage[];
+  application: ApplicationData;
   beverageCategory: BeverageCategory;
 }
 ```
@@ -258,6 +330,46 @@ interface AnalysisReport {
   observations: AnalysisObservation[];
 }
 ```
+
+### Verification Report Types (`shared/analysisTypes.ts`)
+
+```typescript
+type FieldMatchStatus = 'MATCH' | 'MISMATCH' | 'NOT_FOUND' | 'NEEDS_REVIEW';
+
+interface FieldVerification {
+  field: string;             // Application field name, e.g. "Brand Name"
+  applicationValue: string;
+  labelValue: string;        // Exact text found on the label, or "not found"
+  status: FieldMatchStatus;
+  note: string;              // One-line judgment explanation
+}
+
+interface WarningVerification {
+  present: boolean;
+  exactWording: boolean;
+  formattingCorrect: boolean;  // "GOVERNMENT WARNING:" in caps + bold
+  status: 'PASS' | 'FAIL' | 'NEEDS_REVIEW';
+  note: string;
+}
+
+interface VerificationReport {
+  overallResult: 'PASS' | 'FAIL' | 'NEEDS_REVIEW';  // Derived in code, not model-generated
+  fields: FieldVerification[];
+  warningStatement: WarningVerification;
+  imageQualityNote: string;  // Empty string when image quality is fine
+}
+```
+
+### `deriveOverallResult()`
+
+```typescript
+function deriveOverallResult(
+  fields: FieldVerification[],
+  warning: WarningVerification
+): VerificationReport['overallResult']
+```
+
+Deterministic verdict derivation: `FAIL` if any field is `MISMATCH` or `NOT_FOUND`, or the warning is `FAIL`; `PASS` if every field is `MATCH` and the warning is `PASS`; otherwise `NEEDS_REVIEW`. Applied by `runLabelVerification()` to the model output, so the overall verdict is never left to the model.
 
 ### Comparison Report Types (`shared/analysisTypes.ts`)
 
@@ -343,7 +455,7 @@ type BeverageCategory = 'distilled-spirits' | 'wine' | 'malt-beverages';
 ### Constants
 
 - `LABEL_TYPES: LabelTypeInfo[]` and `BEVERAGE_CATEGORIES: BeverageCategoryInfo[]` (`types.ts`) — label-type and category metadata for the UI
-- `APP_VERSION = "1.4.0"` — the only export of `constants.ts` (all prompts now live in `shared/labelAnalysis.ts`)
+- `APP_VERSION = "1.5.0"` — the only export of `constants.ts` (all prompts now live in `shared/labelAnalysis.ts`)
 
 ## Error Handling
 
@@ -353,6 +465,8 @@ Common error messages thrown to callers (verbatim from the source):
 // Validation (shared runners)
 "No images provided for analysis."
 "Both current and proposed images are required for comparison."
+"No label image provided for verification."
+"Application data must include brand name, class/type, alcohol content, and net contents."
 
 // Gemini errors (translateGeminiError)
 "The configured Gemini API key is invalid. Please verify the key."
@@ -421,6 +535,26 @@ if (report.identical) {
 }
 ```
 
+### Application Verification
+
+```typescript
+import { verifyLabel } from './services/geminiService';
+
+const report = await verifyLabel({
+  images: [{ base64: labelB64, mimeType: 'image/jpeg' }],
+  application: {
+    brandName: 'OLD TOM DISTILLERY',
+    classType: 'Kentucky Straight Bourbon Whiskey',
+    alcoholContent: '45% Alc./Vol.',
+    netContents: '750 mL',
+  },
+  beverageCategory: 'distilled-spirits',
+});
+
+console.log(report.overallResult); // 'PASS' | 'FAIL' | 'NEEDS_REVIEW'
+console.log(report.fields.map(f => `${f.field}: ${f.status}`));
+```
+
 ### PDF Report Generation
 
 ```typescript
@@ -453,14 +587,14 @@ There are no client-side API key environment variables. A user-supplied key is s
 
 - **Per image (client)**: 5MB original-file cap, enforced before upload. Supported files over 1.5MB (and non-pass-through formats) are downscaled to 2000px / JPEG q0.9.
 - **Per request (server path)**: ~4.2MB JSON payload, under Vercel's ~4.5MB body limit. Direct local-key calls are not subject to this cap.
-- **Images per analysis**: up to 5 in the UI (`maxImages` on `MultiImageUploader`); comparison mode uses one current and one proposed image.
+- **Images per analysis**: up to 5 in the UI (`maxImages` on `MultiImageUploader`); comparison mode uses one current and one proposed image; verification uses one label image per application (batch verification sends one request per image, 4 at a time).
 - **Gemini quotas**: requests per minute vary by API key tier.
 
 ## Version Compatibility
 
 ### API Versions
 
-- **Gemini model**: `gemini-3.5-flash`
+- **Gemini models**: `gemini-3.5-flash` (analysis/comparison), `gemini-3.1-flash-lite` (verification)
 - **@google/genai SDK**: ^1.52.0
 - **jsPDF**: ^4.2.1 (jspdf-autotable and @types/jspdf removed)
 - **React**: ^19.1

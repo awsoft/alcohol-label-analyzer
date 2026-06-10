@@ -12,14 +12,56 @@ The Alcohol Label Compliance Analyzer helps you check whether your alcohol bever
 - **Settings**: Gear icon for optionally adding your own Gemini API key — without one, analysis runs through the app's server
 
 ### Main Analysis Area
-- **Mode Selector**: Switch between "New Label" analysis and "Label Change" comparison
+- **Mode Selector**: Switch between "Verify Application" (the default), "New Label" analysis, and "Label Change" comparison
 - **Image Upload Section**: Upload and manage label images
 - **Product Requirements**: Configure specific ingredients in your product
 - **Beverage Category Selector**: Choose your product type
 - **Analyze Button**: Start the compliance analysis
 - **Results Display**: View detailed analysis results
 
-## Step-by-Step Analysis Process
+## Verifying a Label Against an Application (Verify Application Mode)
+
+The app opens in "Verify Application" mode. It is built for agents checking a submitted label against the COLA application data on file: enter the application data, upload the label image, and get a field-by-field match verdict — typically in 2–3 seconds.
+
+### Single Application
+
+1. Fill in the application data form. Four fields are required: Brand Name, Class/Type, Alcohol Content, and Net Contents. Bottler/Producer and Country of Origin (imports only) are optional — leave them blank to skip those checks
+2. Drag a label image into the dropzone, or click "Select Image" (one image per verification)
+3. Select the beverage category
+4. Click "Verify Label" — the result banner shows the elapsed time next to the verdict
+
+### Reading the Verdicts
+
+**Overall banner** — one of three results, computed deterministically from the individual checks below (not chosen by the AI):
+- **PASS**: every application field matched and the Government Warning passed
+- **FAIL**: at least one field mismatched or was not found on the label, or the Government Warning failed
+- **NEEDS REVIEW**: nothing failed outright, but at least one check was too unclear to judge — agent judgment required
+
+**Field table** — one row per application field, showing the application value, the exact text found on the label ("On Label"), a status chip, and a one-line note:
+- **MATCH**: same information. Differences in capitalization, punctuation, or spacing still count as a match, as do equivalent expressions — "45% Alc./Vol." matches "90 Proof" (proof is 2× ABV), and "750 mL" matches "750ML" or "75 cl". The note mentions any such difference
+- **MISMATCH**: substantively different (different name, number, or designation)
+- **NOT FOUND**: the value does not appear anywhere on the label
+- **NEEDS REVIEW**: visible but too unclear or ambiguous to judge confidently
+
+**Government Health Warning card** — checked on every label regardless of the application data, with three checks: present, exact word-for-word wording, and "GOVERNMENT WARNING:" in capital letters and bold type.
+
+**Image quality** — if the photo is blurry, glared, or taken at an angle, a yellow warning box describes the problem. Treat verdicts from poor-quality images with caution.
+
+### Verifying a Batch
+
+Switch to the "Batch" tab to verify many applications in one run. Each image is one application.
+
+1. Click "Add Label Images" (or drag and drop) to add all the label images
+2. Fill in the four required fields inline on each row, **or** import them from a CSV:
+   - Click "Download CSV template" to get the expected format — columns: `image`, `brand_name`, `class_type`, `alcohol_content`, `net_contents`, `bottler_name`, `country_of_origin`, `beverage_category`
+   - Upload the images first, then click "Import Application CSV". Rows are matched to images by file name; the app reports any CSV rows with no matching image
+3. The beverage category selector below the rows applies to every row that did not get a category from the CSV
+4. Click "Verify All" — verifications run in parallel (four at a time). Each row gets a PASS / FAIL / NEEDS REVIEW chip with its own timing, and a summary line shows the totals (x pass · y fail · z review — total seconds)
+5. Click "Detail" on any row to expand its full field-by-field result, and "Export Results CSV" to download the per-image results
+
+## Step-by-Step Analysis Process (New Label Mode)
+
+For a full TTB compliance review of a new label, switch to "New Label" using the mode selector at the top.
 
 ### Step 1: Upload Label Images
 

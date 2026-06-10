@@ -8,11 +8,20 @@ import type { BeverageCategory } from '../types';
 import type {
   AnalyzeRequest,
   CompareRequest,
+  VerifyRequest,
   AnalysisReport,
   ComparisonReport,
+  VerificationReport,
 } from './analysisTypes';
+import { deriveOverallResult } from './analysisTypes';
 
 export const GEMINI_MODEL = 'gemini-3.5-flash';
+// Verification is latency-critical (agents abandon tools slower than ~5s), so it
+// uses the lite model — benchmarked faster with equivalent matching quality.
+export const GEMINI_VERIFY_MODEL = 'gemini-3.1-flash-lite';
+
+export const GOVERNMENT_WARNING_TEXT =
+  'GOVERNMENT WARNING: (1) According to the Surgeon General, women should not drink alcoholic beverages during pregnancy because of the risk of birth defects. (2) Consumption of alcoholic beverages impairs your ability to drive a car or operate machinery, and may cause health problems.';
 
 // ---- Prompts: new-label analysis ----
 
@@ -138,6 +147,43 @@ Differences in photo quality, lighting, scan resolution, perspective, or compres
 Finally report: "submissionRequired" (required / recommended / not-required / uncertain), "riskLevel" (high / medium / low), "reasoning" (the primary basis for the determination), "recommendations" (practical next steps, empty array if none), and "finalDetermination" (one clear closing statement).`;
 };
 
+// ---- Prompts: application verification ----
+
+export const buildVerificationPrompt = (req: VerifyRequest): string => {
+  const app = req.application;
+  const optionalLines = [
+    app.bottlerName ? `- Bottler/Producer Name and Address: "${app.bottlerName}"` : null,
+    app.countryOfOrigin ? `- Country of Origin: "${app.countryOfOrigin}"` : null,
+  ].filter(Boolean).join('\n');
+
+  return `You are assisting a TTB compliance agent. Verify that the label image matches the application data the applicant filed. Be fast and precise.
+
+APPLICATION DATA:
+- Brand Name: "${app.brandName}"
+- Class/Type: "${app.classType}"
+- Alcohol Content: "${app.alcoholContent}"
+- Net Contents: "${app.netContents}"
+${optionalLines}
+Beverage category: ${req.beverageCategory.replace('-', ' ')}
+
+For EACH application field above, find the corresponding text on the label and judge:
+- MATCH — same information. Apply human judgment: differences in capitalization, punctuation, or spacing are still a MATCH (mention the difference in the note). Equivalent expressions match: "45% Alc./Vol." = "45% ALC/VOL" = "90 Proof" (proof is exactly 2x ABV); "750 mL" = "750ML" = "75 cl".
+- MISMATCH — substantively different (different name, different number, different designation).
+- NOT_FOUND — does not appear anywhere on the label.
+- NEEDS_REVIEW — visible but too unclear or ambiguous to judge confidently.
+Report labelValue as the exact text shown on the label, or "not found".
+
+Also verify the Government Health Warning Statement (mandatory on all labels, independent of the application):
+- present: is any government warning statement on the label?
+- exactWording: does it match this text word-for-word: "${GOVERNMENT_WARNING_TEXT}"
+- formattingCorrect: does "GOVERNMENT WARNING:" appear in all capital letters and bold type?
+- status: PASS only if present with exact wording and correct formatting; FAIL if missing, reworded, or wrongly formatted; NEEDS_REVIEW only if illegible.
+
+If the photo is blurry, angled, glared, or partially unreadable, describe it briefly in imageQualityNote; use an empty string if quality is fine.
+
+Only evaluate the fields listed in the application data. Do not invent additional fields.`;
+};
+
 // ---- Gemini response schemas ----
 
 const ANALYSIS_SCHEMA: Schema = {
@@ -216,6 +262,42 @@ const COMPARISON_SCHEMA: Schema = {
   propertyOrdering: ['changes', 'identical', 'submissionRequired', 'riskLevel', 'reasoning', 'recommendations', 'finalDetermination'],
 };
 
+const VERIFICATION_SCHEMA: Schema = {
+  type: Type.OBJECT,
+  properties: {
+    fields: {
+      type: Type.ARRAY,
+      items: {
+        type: Type.OBJECT,
+        properties: {
+          field: { type: Type.STRING },
+          applicationValue: { type: Type.STRING },
+          labelValue: { type: Type.STRING },
+          status: { type: Type.STRING, enum: ['MATCH', 'MISMATCH', 'NOT_FOUND', 'NEEDS_REVIEW'] },
+          note: { type: Type.STRING },
+        },
+        required: ['field', 'applicationValue', 'labelValue', 'status', 'note'],
+        propertyOrdering: ['field', 'applicationValue', 'labelValue', 'status', 'note'],
+      },
+    },
+    warningStatement: {
+      type: Type.OBJECT,
+      properties: {
+        present: { type: Type.BOOLEAN },
+        exactWording: { type: Type.BOOLEAN },
+        formattingCorrect: { type: Type.BOOLEAN },
+        status: { type: Type.STRING, enum: ['PASS', 'FAIL', 'NEEDS_REVIEW'] },
+        note: { type: Type.STRING },
+      },
+      required: ['present', 'exactWording', 'formattingCorrect', 'status', 'note'],
+      propertyOrdering: ['present', 'exactWording', 'formattingCorrect', 'status', 'note'],
+    },
+    imageQualityNote: { type: Type.STRING },
+  },
+  required: ['fields', 'warningStatement', 'imageQualityNote'],
+  propertyOrdering: ['fields', 'warningStatement', 'imageQualityNote'],
+};
+
 // ---- Runners ----
 
 /** Maps raw Gemini/SDK errors to user-presentable messages. */
@@ -286,6 +368,35 @@ export const runLabelComparison = async (apiKey: string, request: CompareRequest
     if (error instanceof Error && error.message.startsWith('Received an empty response')) throw error;
     if (error instanceof Error && error.message.startsWith('The AI returned')) throw error;
     throw translateGeminiError(error, 'compare the labels');
+  }
+};
+
+export const runLabelVerification = async (
+  apiKey: string,
+  request: VerifyRequest,
+  modelOverride?: string
+): Promise<VerificationReport> => {
+  if (request.images.length === 0) {
+    throw new Error('No label image provided for verification.');
+  }
+  const { brandName, classType, alcoholContent, netContents } = request.application;
+  if (!brandName?.trim() || !classType?.trim() || !alcoholContent?.trim() || !netContents?.trim()) {
+    throw new Error('Application data must include brand name, class/type, alcohol content, and net contents.');
+  }
+  const ai = new GoogleGenAI({ apiKey });
+  try {
+    const response = await ai.models.generateContent({
+      model: modelOverride ?? GEMINI_VERIFY_MODEL,
+      contents: { parts: [...request.images.map(toInlinePart), { text: buildVerificationPrompt(request) }] },
+      config: { responseMimeType: 'application/json', responseSchema: VERIFICATION_SCHEMA },
+    });
+    const partial = parseReport<Omit<VerificationReport, 'overallResult'>>(response.text, 'verify the label');
+    return { ...partial, overallResult: deriveOverallResult(partial.fields, partial.warningStatement) };
+  } catch (error) {
+    if (error instanceof Error && (error.message.startsWith('Received an empty response') || error.message.startsWith('The AI returned'))) {
+      throw error;
+    }
+    throw translateGeminiError(error, 'verify the label');
   }
 };
 

@@ -7,15 +7,16 @@ import { BeverageCategorySelector } from './components/BeverageCategorySelector'
 import { AnalysisDisplay } from './components/AnalysisDisplay';
 import { LoadingSpinner } from './components/LoadingSpinner';
 import { LabelComparisonComponent } from './components/LabelComparison';
+import { ApplicationVerification } from './components/ApplicationVerification';
 import { analyzeLabels, getApiKeyStatus } from './services/geminiService';
 import { AnalysisReport } from './shared/analysisTypes';
 import { ProductRequirements, BeverageCategory, LabelImage } from './types';
-import { AlertTriangle, CheckCircle, UploadCloud, Settings, FileSearch, GitCompare } from 'lucide-react';
+import { AlertTriangle, CheckCircle, ClipboardCheck, UploadCloud, Settings, FileSearch, GitCompare } from 'lucide-react';
 
-type AppMode = 'analysis' | 'comparison';
+type AppMode = 'verification' | 'analysis' | 'comparison';
 
 const App: React.FC = () => {
-  const [appMode, setAppMode] = useState<AppMode>('analysis');
+  const [appMode, setAppMode] = useState<AppMode>('verification');
   const [labelImages, setLabelImages] = useState<LabelImage[]>([]);
   
   const [analysisResult, setAnalysisResult] = useState<AnalysisReport | null>(null);
@@ -163,31 +164,28 @@ const App: React.FC = () => {
 
   // Mode selector component
   const ModeSelector: React.FC = () => {
+    const modes: { id: AppMode; label: string; Icon: React.ElementType }[] = [
+      { id: 'verification', label: 'Verify Application', Icon: ClipboardCheck },
+      { id: 'analysis', label: 'New Label', Icon: FileSearch },
+      { id: 'comparison', label: 'Label Change', Icon: GitCompare },
+    ];
     return (
       <div className="flex justify-center mb-8">
-        <div className="bg-slate-100 dark:bg-slate-700 p-1 rounded-lg inline-flex">
-          <button
-            onClick={() => handleModeChange('analysis')}
-            className={`px-4 py-2 rounded-md text-sm font-medium transition-colors duration-200 flex items-center space-x-2 ${
-              appMode === 'analysis'
-                ? 'bg-sky-600 text-white shadow-sm'
-                : 'text-slate-600 dark:text-slate-300 hover:text-slate-800 dark:hover:text-slate-100'
-            }`}
-          >
-            <FileSearch className="h-4 w-4" />
-            <span>New Label</span>
-          </button>
-          <button
-            onClick={() => handleModeChange('comparison')}
-            className={`px-4 py-2 rounded-md text-sm font-medium transition-colors duration-200 flex items-center space-x-2 ${
-              appMode === 'comparison'
-                ? 'bg-sky-600 text-white shadow-sm'
-                : 'text-slate-600 dark:text-slate-300 hover:text-slate-800 dark:hover:text-slate-100'
-            }`}
-          >
-            <GitCompare className="h-4 w-4" />
-            <span>Label Change</span>
-          </button>
+        <div className="bg-slate-100 dark:bg-slate-700 p-1 rounded-lg inline-flex flex-wrap justify-center">
+          {modes.map(({ id, label, Icon }) => (
+            <button
+              key={id}
+              onClick={() => handleModeChange(id)}
+              className={`px-4 py-2 rounded-md text-sm font-medium transition-colors duration-200 flex items-center space-x-2 ${
+                appMode === id
+                  ? 'bg-sky-600 text-white shadow-sm'
+                  : 'text-slate-600 dark:text-slate-300 hover:text-slate-800 dark:hover:text-slate-100'
+              }`}
+            >
+              <Icon className="h-4 w-4" />
+              <span>{label}</span>
+            </button>
+          ))}
         </div>
       </div>
     );
@@ -211,7 +209,9 @@ const App: React.FC = () => {
           )}
 
           {/* Render content based on selected mode */}
-          {appMode === 'comparison' ? (
+          {appMode === 'verification' ? (
+            <ApplicationVerification disabled={apiKeyMissing} />
+          ) : appMode === 'comparison' ? (
             <LabelComparisonComponent disabled={apiKeyMissing} />
           ) : (
             <>

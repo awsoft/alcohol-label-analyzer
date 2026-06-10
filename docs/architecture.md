@@ -35,7 +35,8 @@ Both paths run the same code from `shared/` for prompt construction, response sc
 
 ### AI Integration
 - **@google/genai SDK** (^1.52.0): Official client for the Gemini API
-- **Gemini 3.5 Flash** (`gemini-3.5-flash`): Called with `responseMimeType: 'application/json'` and a response schema for structured output
+- **Gemini 3.5 Flash** (`gemini-3.5-flash`): Analysis and comparison — called with `responseMimeType: 'application/json'` and a response schema for structured output
+- **Gemini 3.1 Flash Lite** (`gemini-3.1-flash-lite`): Application verification — same structured-output setup. Verification is latency-critical, and the lite model benchmarked at 2–3s per label versus 6–12s for `gemini-3.5-flash` with identical verdicts on match/mismatch/warning-formatting test cases
 
 ### Backend
 - **Vercel serverless functions** in `/api`: Hold the server-side `GEMINI_API_KEY` so it never ships to the browser
@@ -52,10 +53,11 @@ Both paths run the same code from `shared/` for prompt construction, response sc
 ├── api/                  # Vercel serverless functions
 │   ├── analyze.ts        # POST /api/analyze
 │   ├── compare.ts        # POST /api/compare
+│   ├── verify.ts         # POST /api/verify
 │   ├── key-status.ts     # GET /api/key-status
 │   └── _types.ts         # Handler types (underscore files are not deployed)
 ├── shared/               # Isomorphic modules (browser + serverless)
-│   ├── analysisTypes.ts  # Request/report contracts, compliance scoring
+│   ├── analysisTypes.ts  # Request/report contracts, scoring + verdict helpers
 │   └── labelAnalysis.ts  # Prompts, response schemas, Gemini runners
 ├── components/           # React components
 │   ├── Header.tsx
@@ -63,6 +65,7 @@ Both paths run the same code from `shared/` for prompt construction, response sc
 │   ├── MultiImageUploader.tsx
 │   ├── BeverageCategorySelector.tsx
 │   ├── AnalysisDisplay.tsx
+│   ├── ApplicationVerification.tsx
 │   ├── LabelComparison.tsx
 │   ├── ComparisonResults.tsx
 │   ├── LoadingSpinner.tsx
@@ -93,7 +96,7 @@ The Gemini API key is never embedded in the client bundle: `vite.config.ts` has 
 ### Core Components
 
 **App.tsx** - Main application container
-- Mode switch between "New Label" analysis and "Label Change" comparison
+- Mode switch between "Verify Application" (the default), "New Label" analysis, and "Label Change" comparison
 - Manages global state (images, `AnalysisReport` result, loading states, errors)
 - Async API key presence check via `getApiKeyStatus()`; re-checks when the Settings dropdown saves or removes a key
 
@@ -111,8 +114,12 @@ The Gemini API key is never embedded in the client bundle: `vite.config.ts` has 
 - Current vs. proposed upload with beverage category selection
 - Renders a `ComparisonReport`: submission status, risk level, grouped changes with textual location descriptions, or a "No Differences Detected" panel
 
+**ApplicationVerification.tsx** - Verification mode (default)
+- Application data form (4 required fields, 2 optional) plus a single-label upload, or a batch tab with one row per image, inline fields, and CSV import/export
+- Calls `verifyLabel()` (batch runs fan out with concurrency 4) and renders a `VerificationReport`: overall PASS/FAIL/NEEDS REVIEW banner with timing, field-by-field match table, Government Warning card, and image-quality note
+
 **BeverageCategorySelector.tsx** - Category selection
-- TTB beverage category selection used by both modes
+- TTB beverage category selection used by all three modes
 
 ### Component Hierarchy
 
@@ -120,7 +127,12 @@ The Gemini API key is never embedded in the client bundle: `vite.config.ts` has 
 App (inside ThemeProvider)
 ├── Header
 │   └── SettingsDropdown (API key management)
-├── Mode selector (New Label / Label Change)
+├── Mode selector (Verify Application / New Label / Label Change)
+├── Verification mode (default)
+│   └── ApplicationVerification
+│       ├── Application data form or batch rows (inline components)
+│       ├── BeverageCategorySelector
+│       └── VerificationResult (inline component)
 ├── Analysis mode
 │   ├── MultiImageUploader
 │   ├── ProductRequirementsSelector (inline component)
@@ -158,7 +170,7 @@ JSON.parse → AnalysisReport →
 UI renders report
 ```
 
-The comparison flow has the same shape (`compareLabels()` → `/api/compare` → `ComparisonReport`).
+The comparison and verification flows have the same shape (`compareLabels()` → `/api/compare` → `ComparisonReport`; `verifyLabel()` → `/api/verify` → `VerificationReport`). Verification adds one step: after the model responds, `overallResult` is computed in code from the per-field and warning statuses. Batch verification simply repeats the verification flow once per image from the client, 4 requests at a time.
 
 ### 3. State Management
 
@@ -183,18 +195,19 @@ Theme state lives in `contexts/ThemeContext.tsx` — the single source of truth,
 
 - `analyze.ts` — POST; validates the body, runs `runLabelAnalysis` with the server key
 - `compare.ts` — POST; validates both image lists, runs `runLabelComparison`
+- `verify.ts` — POST; validates the image, the required application fields (brand name, class/type, alcohol content, net contents), and the beverage category, then runs `runLabelVerification`
 - `key-status.ts` — GET; reports whether a server key is configured; `?test=1` performs a live connectivity check
 - All return JSON; errors are `{ error: string }` with 405/503/400/502 status codes
 
 ### Shared Modules (`shared/`)
 
-- `analysisTypes.ts` — request/report contracts shared by browser and server, plus `calculateComplianceScore`
-- `labelAnalysis.ts` — prompt builders, Gemini response schemas, `runLabelAnalysis` / `runLabelComparison` / `testGeminiConnection`, and error translation; used by both the BYOK browser path and the serverless functions
+- `analysisTypes.ts` — request/report contracts shared by browser and server, plus `calculateComplianceScore` and `deriveOverallResult`
+- `labelAnalysis.ts` — prompt builders, Gemini response schemas, `runLabelAnalysis` / `runLabelComparison` / `runLabelVerification` / `testGeminiConnection`, and error translation; used by both the BYOK browser path and the serverless functions
 
 ### Browser Service Layer (`services/geminiService.ts`)
 
 **Key Functions:**
-- `analyzeLabels()` / `compareLabels()`: Route to the local key or the serverless endpoints
+- `analyzeLabels()` / `compareLabels()` / `verifyLabel()`: Route to the local key or the serverless endpoints
 - `getApiKeyStatus()`: Presence-only check (localStorage + `/api/key-status`) — no Gemini call
 - `testApiConnection()`: Live test costing one tiny Gemini call; user-initiated only
 - Server-bound requests are capped at ~4.2MB JSON (Vercel's ~4.5MB body limit) with a friendly error suggesting fewer/smaller images or a personal key
@@ -206,6 +219,7 @@ Gemini is always called with `responseMimeType: 'application/json'` plus a `resp
 - The analysis schema yields an `AnalysisReport`: overall status, key issues, summary, mandatory items (each with a quoted `finding`, an enum `status`, and `notes`), and grouped observations.
 - The comparison schema yields a `ComparisonReport`: an `identical` flag, submission requirement, risk level, reasoning, a `changes` array, recommendations, and a final determination.
 - The comparison prompt explicitly allows a "no differences" outcome and forbids inventing changes. Each change carries a textual `location` description (e.g. "bottom-left of the front label") — pixel-coordinate highlighting was removed.
+- The verification schema yields only the per-check results: `fields` (each with application value, exact label text, an enum match status, and a note), a `warningStatement` (present / exact wording / formatting, plus a status), and an `imageQualityNote`. The overall verdict is deliberately **not** in the schema: `runLabelVerification` computes `overallResult` deterministically with `deriveOverallResult()` — FAIL on any `MISMATCH`/`NOT_FOUND` field or a warning FAIL; PASS only when every field is `MATCH` and the warning passes; NEEDS_REVIEW otherwise.
 
 ## Type System
 
@@ -259,6 +273,12 @@ All prompts live in `shared/labelAnalysis.ts`.
 - critical / minor / cosmetic classification rules tied to TTB submission impact
 - Instructions to ignore photo-quality differences and never assume changes exist
 
+**Verification prompt** (`buildVerificationPrompt`):
+- Embeds the filed application data (the four required fields plus any optional ones provided) and the beverage category
+- Match-judgment rules: capitalization, punctuation, and spacing differences still count as MATCH; equivalent expressions match — "45% Alc./Vol." = "90 Proof" (proof is 2× ABV), "750 mL" = "750ML" = "75 cl"
+- Checks the Government Warning independently of the application data: presence, word-for-word wording against the `GOVERNMENT_WARNING_TEXT` constant, and "GOVERNMENT WARNING:" in caps + bold
+- Asks for an `imageQualityNote` describing blur, glare, or angle problems (empty string when quality is fine)
+
 ## Error Handling
 
 ### Error Categories
@@ -295,7 +315,8 @@ All prompts live in `shared/labelAnalysis.ts`.
 ### API Efficiency
 
 **Request Optimization:**
-- Single Gemini call per analysis/comparison with all images inlined
+- Single Gemini call per analysis/comparison/verification with all images inlined
+- Verification runs on `gemini-3.1-flash-lite` for latency (2–3s per label); batch verification fans out one call per application, capped at 4 concurrent requests client-side
 - Schema-constrained output removes any post-processing
 - Page load performs only a cheap presence check; the live connection test is user-initiated
 

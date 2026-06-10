@@ -6,8 +6,10 @@ The Alcohol Label Compliance Analyzer is a React-based web application that leve
 
 ## Key Features
 
+- **Application Verification (default mode)**: Enter the COLA application data and verify the label matches it field-by-field, including an exact Government Warning check — typically in 2–3 seconds per label
+- **Batch Verification**: Verify many label/application pairs in one run, with inline fields or CSV import, per-row PASS/FAIL verdicts, and a results CSV export
 - **Multi-Image Analysis**: Upload multiple label images (front, back, neck, side labels) for comprehensive analysis
-- **AI-Powered Analysis**: Uses Google Gemini 3.5 Flash with structured JSON output for reliable, consistent reports
+- **AI-Powered Analysis**: Uses Google Gemini with structured JSON output for reliable, consistent reports (Gemini 3.5 Flash for analysis and comparison; Gemini 3.1 Flash Lite for fast verification)
 - **Label Change Comparison**: Compare a current (approved) label against a proposed revision to determine whether a new TTB submission is required
 - **Category-Specific Analysis**: Supports three beverage categories with tailored requirements:
   - Distilled Spirits

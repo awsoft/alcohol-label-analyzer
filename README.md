@@ -4,6 +4,8 @@ A React-based web application for analyzing alcohol label compliance using AI-po
 
 ## Features
 
+- **Application Verification**: Enter the COLA application data (brand name, class/type, alcohol content, net contents) and verify the label matches it field-by-field — with human-like judgment (case/punctuation differences match; `45% Alc./Vol.` ≡ `90 Proof`) and an exact Government Warning check. Typical result in **~2–3 seconds**
+- **Batch Verification**: Drop many label images, fill application data inline or import a CSV, and verify them all in parallel with per-application PASS/FAIL verdicts and a results CSV export
 - **Image Upload**: Upload alcohol label images for analysis
 - **Multi-Image Support**: Analyze multiple label images (front, back, neck, side labels) in a single submission
 - **Beverage Category Selection**: Specify whether your product is distilled spirits, wine, or malt beverages for category-specific compliance checks
@@ -15,6 +17,15 @@ A React-based web application for analyzing alcohol label compliance using AI-po
 - **Modern UI**: Clean, responsive interface built with React and Tailwind CSS
 
 ## How to Use
+
+### Verify Application Mode (default)
+1. Enter the application data: brand name, class/type, alcohol content, and net contents (bottler and country of origin optional)
+2. Upload the label image and select the beverage category
+3. Click "Verify Label" — each field gets a MATCH / MISMATCH / NOT FOUND / NEEDS REVIEW verdict with the exact text found on the label, plus a Government Warning check (presence, exact wording, caps + bold formatting)
+
+For **batches**: switch to the Batch tab, add all label images (one per application), fill the fields inline or import a CSV (`Download CSV template` shows the format; rows are matched to images by file name), then "Verify All". Results run in parallel and can be exported as CSV.
+
+> Verification uses `gemini-3.1-flash-lite`: benchmarked at 2–3s per label with verdicts identical to `gemini-3.5-flash` (6–12s) on match, mismatch, and warning-formatting test cases. The deeper analysis modes below use `gemini-3.5-flash`.
 
 ### New Label Mode
 1. Upload your label images (supports front, back, neck, side, and other label types)

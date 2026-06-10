@@ -57,6 +57,68 @@ export interface AnalysisReport {
   observations: AnalysisObservation[];
 }
 
+// ---- Application verification (label vs. COLA application data) ----
+
+/** The values the applicant filed — what the label must be checked against. */
+export interface ApplicationData {
+  brandName: string;
+  classType: string;
+  alcoholContent: string;
+  netContents: string;
+  bottlerName?: string;
+  countryOfOrigin?: string;
+}
+
+export interface VerifyRequest {
+  images: ComparisonImage[];
+  application: ApplicationData;
+  beverageCategory: BeverageCategory;
+}
+
+export type FieldMatchStatus = 'MATCH' | 'MISMATCH' | 'NOT_FOUND' | 'NEEDS_REVIEW';
+
+export interface FieldVerification {
+  /** Application field name, e.g. "Brand Name" */
+  field: string;
+  applicationValue: string;
+  /** Exact text found on the label, or "not found" */
+  labelValue: string;
+  status: FieldMatchStatus;
+  /** One-line judgment explanation */
+  note: string;
+}
+
+export interface WarningVerification {
+  present: boolean;
+  exactWording: boolean;
+  formattingCorrect: boolean;
+  status: 'PASS' | 'FAIL' | 'NEEDS_REVIEW';
+  note: string;
+}
+
+export interface VerificationReport {
+  /** Derived deterministically from fields + warning (not model-generated) */
+  overallResult: 'PASS' | 'FAIL' | 'NEEDS_REVIEW';
+  fields: FieldVerification[];
+  warningStatement: WarningVerification;
+  /** Empty string when image quality is fine */
+  imageQualityNote: string;
+}
+
+/** PASS only when everything matches; FAIL on any hard mismatch; NEEDS_REVIEW otherwise. */
+export const deriveOverallResult = (
+  fields: FieldVerification[],
+  warning: WarningVerification
+): VerificationReport['overallResult'] => {
+  if (fields.some(f => f.status === 'MISMATCH' || f.status === 'NOT_FOUND') || warning.status === 'FAIL') {
+    return 'FAIL';
+  }
+  if (fields.every(f => f.status === 'MATCH') && warning.status === 'PASS') {
+    return 'PASS';
+  }
+  return 'NEEDS_REVIEW';
+};
+
 // ---- Label-change comparison report ----
 
 export type ChangeSignificance = 'critical' | 'minor' | 'cosmetic';

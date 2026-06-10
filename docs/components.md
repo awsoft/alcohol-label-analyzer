@@ -10,18 +10,19 @@ This guide provides detailed documentation for all React components in the Alcoh
 
 Main application container that orchestrates the entire analysis workflow.
 
-**Purpose**: Primary component that manages global state, switches between the two app modes ("New Label" analysis and "Label Change" comparison), and coordinates all other components.
+**Purpose**: Primary component that manages global state, switches between the three app modes ("Verify Application" — the default — plus "New Label" analysis and "Label Change" comparison), and coordinates all other components.
 
 **Key Features**:
 - Global state management for images, analysis results, loading states
 - Async API key presence check via `getApiKeyStatus()` (server key or local key); re-checks when the Settings dropdown changes the key
 - Analysis workflow orchestration via `analyzeLabels()`
 - Product requirements configuration (inline `ProductRequirementsSelector` component)
-- Mode selector (inline `ModeSelector` component)
+- Mode selector (inline `ModeSelector` component): Verify Application / New Label / Label Change; switching modes clears images, results, and errors
+- The verification and comparison modes are delegated to self-contained containers (`ApplicationVerification`, `LabelComparisonComponent`), each receiving only `disabled={apiKeyMissing}`
 
 **State Management**:
 ```typescript
-const [appMode, setAppMode] = useState<AppMode>('analysis'); // 'analysis' | 'comparison'
+const [appMode, setAppMode] = useState<AppMode>('verification'); // 'verification' | 'analysis' | 'comparison'
 const [labelImages, setLabelImages] = useState<LabelImage[]>([]);
 const [analysisResult, setAnalysisResult] = useState<AnalysisReport | null>(null);
 const [isLoading, setIsLoading] = useState<boolean>(false);
@@ -101,7 +102,7 @@ interface MultiImageUploaderProps {
 
 ### BeverageCategorySelector.tsx
 
-Component for selecting TTB beverage categories. Used by both the analysis and comparison modes.
+Component for selecting TTB beverage categories. Used by all three modes (verification, analysis, and comparison).
 
 **Props**:
 ```typescript
@@ -185,6 +186,38 @@ interface ComparisonResultsProps {
 - Recommendations list and final determination
 
 No images or canvas drawing — change locations are text descriptions, not coordinate overlays.
+
+### ApplicationVerification.tsx
+
+Verification-mode container (`ApplicationVerification`) — the top-level component of the default app mode. Checks a label image against the COLA application data the applicant filed.
+
+**Props**:
+```typescript
+interface ApplicationVerificationProps {
+  disabled?: boolean;  // default false; App passes apiKeyMissing
+}
+```
+
+**Key Features**:
+- Single / Batch tab toggle (the Batch tab shows its current row count)
+- Calls `verifyLabel()` once per image and renders results with an internal `VerificationResult` component, timing each call with `performance.now()`
+
+**Single tab**:
+- Application data form (internal `FieldInput` rows): Brand Name, Class/Type, Alcohol Content, and Net Contents required; Bottler/Producer and Country of Origin optional
+- Single-image dropzone/file picker that goes through `prepareImageForAnalysis()` (5MB cap and downscaling apply)
+- Own `BeverageCategorySelector`
+- "Verify Label" button — disabled until an image is present and all required fields are filled (the button label says what is missing)
+- Result panel: overall PASS / FAIL / NEEDS REVIEW banner with an elapsed-seconds badge; an image-quality warning box when `imageQualityNote` is non-empty; a field table (Field / Application / On Label / Status chip / Note); and a Government Health Warning card with three pass/fail checks (present, exact wording, "GOVERNMENT WARNING:" caps + bold)
+
+**Batch tab**:
+- Multi-image add via button or drag-and-drop — one image is one application, rendered as one row
+- Inline per-row inputs for the four required fields
+- Optional CSV import (images must be uploaded first), matched to rows by file name; unmatched CSV rows are reported. A CSV template is downloadable in-app — columns: `image`, `brand_name`, `class_type`, `alcohol_content`, `net_contents`, `bottler_name`, `country_of_origin`, `beverage_category`
+- The page-level `BeverageCategorySelector` applies to rows without a CSV-specified category
+- "Verify All" runs only the rows with all required fields filled, through a small async pool with concurrency 4
+- Per-row status chip (Ready / Verifying… / PASS / FAIL / NEEDS REVIEW / ERROR) with per-row timing, plus an expandable "Detail" view reusing the same `VerificationResult` rendering
+- Summary line after a run: pass / fail / review (and error) counts plus the total elapsed seconds
+- "Export Results CSV" downloads a per-image results file (overall result, per-field statuses, warning status, timing)
 
 ### LoadingSpinner.tsx
 
