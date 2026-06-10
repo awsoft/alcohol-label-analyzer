@@ -57,7 +57,7 @@ Compares current vs. proposed label versions.
 
 ### `POST /api/verify`
 
-Verifies a label image against the COLA application data the applicant filed, field by field.
+Verifies a label image against the COLA application data the applicant filed, field by field, applying the TTB placement rules for the stated label type.
 
 **Request body** (`VerifyRequest`):
 ```json
@@ -70,16 +70,17 @@ Verifies a label image against the COLA application data the applicant filed, fi
     "netContents": "750 mL",
     "bottlerName": "Old Tom Distillery Co., Bardstown, KY"
   },
-  "beverageCategory": "distilled-spirits"
+  "beverageCategory": "distilled-spirits",
+  "labelType": "front"
 }
 ```
 
-`bottlerName` and `countryOfOrigin` are optional; the other four application fields are required and must be non-empty.
+`bottlerName` and `countryOfOrigin` are optional; the other four application fields are required and must be non-empty. `labelType` is optional — `"front"`, `"back"`, or `"neck"`, defaulting to `"front"` — and selects the placement rules embedded in the prompt: fields that may legally appear on a different label of the container are reported as `NOT_EXPECTED` rather than `NOT_FOUND` when absent.
 
 **Responses:**
 - `200` — a `VerificationReport` (see Type Definitions). Its `overallResult` is derived deterministically in code from the field and warning statuses — it is not model-generated.
 - `405` / `503` — as above
-- `400` — missing/empty/invalid `images`; application data missing any of brand name, class/type, alcohol content, or net contents; or missing `beverageCategory`
+- `400` — missing/empty/invalid `images`; application data missing any of brand name, class/type, alcohol content, or net contents; missing `beverageCategory`; or an invalid `labelType` (`{ "error": "labelType must be \"front\", \"back\", or \"neck\"." }`)
 - `502` — the Gemini call failed
 
 ### `GET /api/key-status`
@@ -244,7 +245,7 @@ function buildComparisonPrompt(req: CompareRequest): string
 function buildVerificationPrompt(req: VerifyRequest): string
 ```
 
-The verification prompt embeds the application data and the match-judgment rules (capitalization/punctuation/spacing differences still MATCH; equivalent expressions match, e.g. "45% Alc./Vol." = "90 Proof", "750 mL" = "75 cl"), and checks the Government Warning against `GOVERNMENT_WARNING_TEXT`.
+The verification prompt embeds the application data, the placement rules for the request's label type (`buildPlacementRules`, keyed off `labelType` — default `'front'` — and the beverage category: spirits/malt front labels expect brand name + class/type + alcohol content together in one field of vision per 27 CFR 5.63/7.63; wine front labels require brand name + class/type per 27 CFR 4.32; on back/neck labels absent fields are NOT_EXPECTED, though contradictions are MISMATCH wherever they appear), and the match-judgment rules (capitalization/punctuation/spacing differences still MATCH; equivalent expressions match, e.g. "45% Alc./Vol." = "90 Proof", "750 mL" = "75 cl"). The Government Warning is checked against `GOVERNMENT_WARNING_TEXT`: per 27 CFR 16.21 it may appear on the front, back, or side label, so absence from the verified label yields NEEDS_REVIEW (confirm on another label) rather than FAIL, and the formatting check requires "GOVERNMENT WARNING:" in caps + bold with the remainder of the statement NOT bold.
 
 #### `GEMINI_MODEL` / `GEMINI_VERIFY_MODEL`
 
@@ -296,10 +297,14 @@ interface ApplicationData {
   countryOfOrigin?: string;
 }
 
+// Which physical label of the container is being verified
+type VerificationLabelType = 'front' | 'back' | 'neck';
+
 interface VerifyRequest {
   images: ComparisonImage[];
   application: ApplicationData;
   beverageCategory: BeverageCategory;
+  labelType?: VerificationLabelType;  // defaults to 'front'
 }
 ```
 
@@ -334,7 +339,10 @@ interface AnalysisReport {
 ### Verification Report Types (`shared/analysisTypes.ts`)
 
 ```typescript
-type FieldMatchStatus = 'MATCH' | 'MISMATCH' | 'NOT_FOUND' | 'NEEDS_REVIEW';
+// NOT_FOUND     = required on this label type but absent (a problem)
+// NOT_EXPECTED  = absent, but the regulations allow it on a different label
+//                 (27 CFR 4.32 / 5.63 / 7.63 placement rules) — not a failure
+type FieldMatchStatus = 'MATCH' | 'MISMATCH' | 'NOT_FOUND' | 'NOT_EXPECTED' | 'NEEDS_REVIEW';
 
 interface FieldVerification {
   field: string;             // Application field name, e.g. "Brand Name"
@@ -347,7 +355,7 @@ interface FieldVerification {
 interface WarningVerification {
   present: boolean;
   exactWording: boolean;
-  formattingCorrect: boolean;  // "GOVERNMENT WARNING:" in caps + bold
+  formattingCorrect: boolean;  // "GOVERNMENT WARNING:" in caps + bold; remainder not bold
   status: 'PASS' | 'FAIL' | 'NEEDS_REVIEW';
   note: string;
 }
@@ -369,7 +377,7 @@ function deriveOverallResult(
 ): VerificationReport['overallResult']
 ```
 
-Deterministic verdict derivation: `FAIL` if any field is `MISMATCH` or `NOT_FOUND`, or the warning is `FAIL`; `PASS` if every field is `MATCH` and the warning is `PASS`; otherwise `NEEDS_REVIEW`. Applied by `runLabelVerification()` to the model output, so the overall verdict is never left to the model.
+Deterministic verdict derivation: `FAIL` if any field is `MISMATCH` or `NOT_FOUND`, or the warning is `FAIL`; `PASS` if every field is `MATCH` or `NOT_EXPECTED` and the warning is `PASS`; otherwise `NEEDS_REVIEW` (e.g. the warning is absent from the verified label — 27 CFR 16.21 allows it on the front, back, or side label, so one label cannot prove absence). Applied by `runLabelVerification()` to the model output, so the overall verdict is never left to the model.
 
 ### Comparison Report Types (`shared/analysisTypes.ts`)
 
@@ -549,6 +557,7 @@ const report = await verifyLabel({
     netContents: '750 mL',
   },
   beverageCategory: 'distilled-spirits',
+  labelType: 'front', // optional — 'front' (default) | 'back' | 'neck'
 });
 
 console.log(report.overallResult); // 'PASS' | 'FAIL' | 'NEEDS_REVIEW'

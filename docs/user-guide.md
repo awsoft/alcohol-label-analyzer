@@ -27,23 +27,30 @@ The app opens in "Verify Application" mode. It is built for agents checking a su
 
 1. Fill in the application data form. Four fields are required: Brand Name, Class/Type, Alcohol Content, and Net Contents. Bottler/Producer and Country of Origin (imports only) are optional — leave them blank to skip those checks
 2. Drag a label image into the dropzone, or click "Select Image" (one image per verification)
-3. Select the beverage category
-4. Click "Verify Label" — the result banner shows the elapsed time next to the verdict
+3. Pick the label type — Front, Back, or Neck Label — from the dropdown above the image (defaults to Front). This tells the checker which TTB placement rules apply, so a back label is not failed for "missing" information that belongs on the front
+4. Select the beverage category
+5. Click "Verify Label" — the result banner shows the elapsed time next to the verdict
 
 ### Reading the Verdicts
 
 **Overall banner** — one of three results, computed deterministically from the individual checks below (not chosen by the AI):
-- **PASS**: every application field matched and the Government Warning passed
-- **FAIL**: at least one field mismatched or was not found on the label, or the Government Warning failed
-- **NEEDS REVIEW**: nothing failed outright, but at least one check was too unclear to judge — agent judgment required
+- **PASS**: every application field matched (or legitimately lives on another label) and the Government Warning passed
+- **FAIL**: at least one field mismatched or was missing even though this label type requires it, or the Government Warning failed
+- **NEEDS REVIEW**: nothing failed outright, but at least one check needs a human — e.g. a field too unclear to judge, or the warning simply not being on this particular label (it may legally be on another) — agent judgment required
 
 **Field table** — one row per application field, showing the application value, the exact text found on the label ("On Label"), a status chip, and a one-line note:
 - **MATCH**: same information. Differences in capitalization, punctuation, or spacing still count as a match, as do equivalent expressions — "45% Alc./Vol." matches "90 Proof" (proof is 2× ABV), and "750 mL" matches "750ML" or "75 cl". The note mentions any such difference
-- **MISMATCH**: substantively different (different name, number, or designation)
-- **NOT FOUND**: the value does not appear anywhere on the label
+- **MISMATCH**: substantively different (different name, number, or designation) — a mismatch counts against the label no matter which label type it appears on
+- **NOT FOUND**: required on this label type but absent from the label
+- **NOT EXPECTED**: absent from this label, but TTB placement rules allow it on a different label of the container — shown as a neutral gray chip and never counted against the verdict. A back label "missing" the brand name is NOT EXPECTED, not a failure
 - **NEEDS REVIEW**: visible but too unclear or ambiguous to judge confidently
 
-**Government Health Warning card** — checked on every label regardless of the application data, with three checks: present, exact word-for-word wording, and "GOVERNMENT WARNING:" in capital letters and bold type.
+**How the label type changes what is expected** — the placement rules come straight from the regulations:
+- **Front label, spirits or malt beverages** (27 CFR 5.63/7.63): brand name, class/type, and alcohol content must appear together in one field of vision — a single side of the container, normally the front. If any one of the three is on the label, all three are expected, so a missing one is NOT FOUND. Net contents, bottler name/address, and country of origin may be on another label (NOT EXPECTED when absent)
+- **Front label, wine** (27 CFR 4.32): brand name and class/type are required on the brand (front) label; alcohol content, net contents, and name/address may be on any label
+- **Back or neck label**: most mandatory information may legally live elsewhere, so absent fields are NOT EXPECTED — but anything that does appear and contradicts the application is still a MISMATCH
+
+**Government Health Warning card** — checked on every label regardless of the application data, with three checks: present, exact word-for-word wording, and correct formatting — "GOVERNMENT WARNING:" in capital letters and bold type, with the rest of the statement *not* in bold. Per 27 CFR 16.21 the warning may appear on the front, back, or side label, so if it simply is not on the label you uploaded the card shows NEEDS REVIEW with a note to confirm it on another label of the container — absence from one label is never an automatic failure. A reworded or wrongly formatted warning on this label still fails.
 
 **Image quality** — if the photo is blurry, glared, or taken at an angle, a yellow warning box describes the problem. Treat verdicts from poor-quality images with caution.
 
@@ -52,12 +59,12 @@ The app opens in "Verify Application" mode. It is built for agents checking a su
 Switch to the "Batch" tab to verify many applications in one run. Each image is one application.
 
 1. Click "Add Label Images" (or drag and drop) to add all the label images
-2. Fill in the four required fields inline on each row, **or** import them from a CSV:
-   - Click "Download CSV template" to get the expected format — columns: `image`, `brand_name`, `class_type`, `alcohol_content`, `net_contents`, `bottler_name`, `country_of_origin`, `beverage_category`
+2. Pick each row's label type (Front, Back, or Neck Label — the fifth control in the row; defaults to Front) and fill in the four required fields inline, **or** import them from a CSV:
+   - Click "Download CSV template" to get the expected format — columns: `image`, `brand_name`, `class_type`, `alcohol_content`, `net_contents`, `bottler_name`, `country_of_origin`, `beverage_category`, `label_type`. The optional `label_type` column accepts front, back, or neck (defaults to front); the template includes a front-label and a back-label example row
    - Upload the images first, then click "Import Application CSV". Rows are matched to images by file name; the app reports any CSV rows with no matching image
 3. The beverage category selector below the rows applies to every row that did not get a category from the CSV
 4. Click "Verify All" — verifications run in parallel (four at a time). Each row gets a PASS / FAIL / NEEDS REVIEW chip with its own timing, and a summary line shows the totals (x pass · y fail · z review — total seconds)
-5. Click "Detail" on any row to expand its full field-by-field result, and "Export Results CSV" to download the per-image results
+5. Click "Detail" on any row to expand its full field-by-field result, and "Export Results CSV" to download the per-image results (the export includes each row's label type)
 
 ## Step-by-Step Analysis Process (New Label Mode)
 
@@ -301,8 +308,8 @@ After analysis completion (New Label mode), you can generate a comprehensive PDF
 - Check if it's within TTB tolerance ranges
 
 **Health Warning Issues**
-- Verify complete warning text is present
-- Check for proper capitalization ("GOVERNMENT WARNING:")
+- Verify complete warning text is present on at least one label — per 27 CFR 16.21 it may be on the front, back, or side label
+- Check for proper capitalization and bolding ("GOVERNMENT WARNING:" in caps and bold; the rest of the statement must not be bold)
 - Ensure adequate size and contrast
 
 **Address Information**

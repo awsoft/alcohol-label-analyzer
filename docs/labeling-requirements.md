@@ -1,6 +1,7 @@
 ### Key Points
 - Getting an alcohol label approved by the TTB involves meeting specific requirements that vary by beverage type (distilled spirits, wine, malt beverages).
 - Common requirements include brand name, alcohol content, name and address, net contents, and a health warning statement.
+- Mandatory information does not all have to appear on one label: placement rules differ by item — the health warning may be on the front, back, or side label, and spirits/malt beverages group brand name, class/type, and alcohol content in one field of vision.
 - Additional requirements depend on the type of alcohol, such as disclosures for coloring materials in spirits or sulfite declarations for wine.
 - The process can be complex, and it's best to consult TTB resources for full details.
 
@@ -32,9 +33,16 @@ This note provides an in-depth examination of the requirements for obtaining alc
 #### Regulatory Framework and General Considerations
 The TTB's labeling regulations are outlined in 27 CFR parts 4 (wine), 5 (distilled spirits), and 7 (malt beverages), with additional guidance from T.D. TTB-158 and T.D. TTB-176, reflecting ongoing modernization efforts. Labels must be submitted for approval via a Certificate of Label Approval (COLA) application, processed through COLAs Online or paper forms, with processing times available at [Processing Times](https://www.ttb.gov/labeling/labeling-resources#processing-times). All labels must be in English, except for brand names, and for Puerto Rico, Spanish is permissible. Imported products must comply with U.S. Customs regulations, including country of origin statements.
 
-A critical universal requirement is the health warning statement, mandated for all containers with ≥0.5% alcohol by volume, bottled after November 18, 1989. This statement, governed by 27 CFR part 16, reads: "GOVERNMENT WARNING: (1) According to the Surgeon General, women should not drink alcoholic beverages during pregnancy because of the risk of birth defects. (2) Consumption of alcoholic beverages impairs your ability to drive a car or operate machinery, and may cause health problems." Type sizes vary by container size: 3 mm for >3L, 2 mm for 237 ml–3L, and 1 mm for ≤237 ml, with specific character limits (40 per inch for 1 mm, 25 for 2 mm, 12 for 3 mm) for legibility.
+A critical universal requirement is the health warning statement, mandated for all containers with ≥0.5% alcohol by volume, bottled after November 18, 1989. This statement, governed by 27 CFR part 16, reads: "GOVERNMENT WARNING: (1) According to the Surgeon General, women should not drink alcoholic beverages during pregnancy because of the risk of birth defects. (2) Consumption of alcoholic beverages impairs your ability to drive a car or operate machinery, and may cause health problems." Per 27 CFR 16.21, the statement may appear on the front, back, or side label, separate and apart from all other information — it is not required to be on the front label. The words "GOVERNMENT WARNING" must appear in capital letters and in bold type, and the remainder of the statement may not appear in bold type. Type sizes vary by container size: 3 mm for >3L, 2 mm for 237 ml–3L, and 1 mm for ≤237 ml, with specific character limits (40 per inch for 1 mm, 25 for 2 mm, 12 for 3 mm) for legibility.
 
 Labels must not be misleading, and additional non-mandatory information (e.g., product descriptions, UPC codes) is allowed if truthful and specific, per 27 CFR 7.56 for malt beverages. The TTB is currently reviewing labeling guidance, with updates aligned with recent regulatory changes, as noted in [Labeling Guidance Review](https://www.ttb.gov/labeling/labeling-resources).
+
+#### Placement of Mandatory Information
+Mandatory information does not all have to appear on a single label, and the placement rules differ by commodity:
+
+- **Distilled spirits and malt beverages (27 CFR 5.63 and 7.63, as modernized by T.D. TTB-176)**: The brand name, class/type designation, and alcohol content must appear together in the same field of vision — a single side of the container, normally the front. The modernization eliminated the older "brand label" concept for these commodities. Net contents, the name and address of the bottler/packer or importer, and the country of origin may appear on any label.
+- **Wine (27 CFR 4.32, not modernized)**: The brand name and class/type designation must appear on the brand (front) label. Alcohol content, net contents, and the name and address may appear on any label.
+- **Health warning statement (27 CFR 16.21)**: May appear on the front, back, or side label, separate and apart from all other information — its absence from any one label is not itself a violation, as long as it appears somewhere on the container.
 
 #### Detailed Requirements by Beverage Type
 
@@ -43,9 +51,9 @@ Distilled spirits, regulated under 27 CFR part 5, have extensive mandatory label
 
 | **Requirement**                  | **Details**                                                                 | **Type Size (mm)** | **Legibility & Placement**                                      |
 |-----------------------------------|-----------------------------------------------------------------------------|-------------------|-----------------------------------------------------------------|
-| Brand Name                        | Prominent, front label; no misleading names unless descriptive or "BRAND"    | No specific        | Readily legible, contrasting background, front                  |
-| Class and Type Designation        | Specific identity (e.g., "VODKA"); see Chapter 4                            | 2 (>200 ml), 1 (≤200 ml) | Parallel to base, legible, front, contrasting background        |
-| Alcohol Content                   | % by volume; proof optional, not more prominent; tolerances apply           | 2 (>200 ml), 1 (≤200 ml) | Parallel to base, legible, front, contrasting background        |
+| Brand Name                        | Prominent; no misleading names unless descriptive or "BRAND"                | No specific        | Readily legible, contrasting background, same field of vision as class/type and alcohol content (single side, normally front) |
+| Class and Type Designation        | Specific identity (e.g., "VODKA"); see Chapter 4                            | 2 (>200 ml), 1 (≤200 ml) | Parallel to base, legible, same field of vision (single side, normally front), contrasting background |
+| Alcohol Content                   | % by volume; proof optional, not more prominent; tolerances apply           | 2 (>200 ml), 1 (≤200 ml) | Parallel to base, legible, same field of vision (single side, normally front), contrasting background |
 | Name and Address                  | Domestic: bottler/distiller; imported: importer details; see Chapter 5       | 2 (>200 ml), 1 (≤200 ml) | Parallel to base, legible, front/back/side, contrasting         |
 | Country of Origin                 | Required for imports (e.g., "PRODUCT OF [COUNTRY]")                         | 2 (>200 ml), 1 (≤200 ml) | Parallel to base, legible, front/back/side, contrasting         |
 | Net Contents                      | Metric standard of fill; see Chapter 6                                      | 2 (>200 ml), 1 (≤200 ml) | Parallel to base, legible, front/back/side, contrasting         |
@@ -85,11 +93,11 @@ Malt beverages, regulated under 27 CFR part 7, have requirements detailed in BAM
 
 | **Requirement**                  | **Details**                                                                 | **Type Size (mm)** | **Legibility & Placement**                                      |
 |-----------------------------------|-----------------------------------------------------------------------------|-------------------|-----------------------------------------------------------------|
-| Brand Name                        | Must be stated, no specific misleading rules mentioned                      | No specific        | Legible, typically front label                                  |
+| Brand Name                        | Must be stated, no specific misleading rules mentioned                      | No specific        | Legible, same field of vision as class/type and alcohol content (single side, normally front) |
 | Name and Address                  | Bottler/packer/importer, must match permit                                 | No specific        | Legible, any label                                              |
-| Class/Type                        | State type (e.g., "ALE", "LAGER")                                           | No specific        | Legible, typically front label                                  |
+| Class/Type                        | State type (e.g., "ALE", "LAGER")                                           | No specific        | Legible, same field of vision (single side, normally front)     |
 | Net Contents                      | Metric (e.g., "355 mL"), can be blown/embossed                             | No specific        | Legible, front/back/side                                        |
-| Alcohol Content                   | % by volume, required                                                      | No specific        | Legible, typically front label                                  |
+| Alcohol Content                   | % by volume, required                                                      | No specific        | Legible, same field of vision (single side, normally front)     |
 | Health Warning Statement          | As per general requirements                                                 | 1, 2, 3 (by size)  | Legible, contrasting, front/back/side, specific limits          |
 | Country of Origin                 | Required for imports, per U.S. Customs regulations                          | Not specified      | Not specified, see regulations                                  |
 

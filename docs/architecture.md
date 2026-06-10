@@ -115,7 +115,7 @@ The Gemini API key is never embedded in the client bundle: `vite.config.ts` has 
 - Renders a `ComparisonReport`: submission status, risk level, grouped changes with textual location descriptions, or a "No Differences Detected" panel
 
 **ApplicationVerification.tsx** - Verification mode (default)
-- Application data form (4 required fields, 2 optional) plus a single-label upload, or a batch tab with one row per image, inline fields, and CSV import/export
+- Application data form (4 required fields, 2 optional) plus a single-label upload with a front/back/neck label-type dropdown, or a batch tab with one row per image, inline fields, a per-row label-type select, and CSV import/export
 - Calls `verifyLabel()` (batch runs fan out with concurrency 4) and renders a `VerificationReport`: overall PASS/FAIL/NEEDS REVIEW banner with timing, field-by-field match table, Government Warning card, and image-quality note
 
 **BeverageCategorySelector.tsx** - Category selection
@@ -195,7 +195,7 @@ Theme state lives in `contexts/ThemeContext.tsx` — the single source of truth,
 
 - `analyze.ts` — POST; validates the body, runs `runLabelAnalysis` with the server key
 - `compare.ts` — POST; validates both image lists, runs `runLabelComparison`
-- `verify.ts` — POST; validates the image, the required application fields (brand name, class/type, alcohol content, net contents), and the beverage category, then runs `runLabelVerification`
+- `verify.ts` — POST; validates the image, the required application fields (brand name, class/type, alcohol content, net contents), the beverage category, and the optional `labelType` (must be front/back/neck when present), then runs `runLabelVerification`
 - `key-status.ts` — GET; reports whether a server key is configured; `?test=1` performs a live connectivity check
 - All return JSON; errors are `{ error: string }` with 405/503/400/502 status codes
 
@@ -219,7 +219,7 @@ Gemini is always called with `responseMimeType: 'application/json'` plus a `resp
 - The analysis schema yields an `AnalysisReport`: overall status, key issues, summary, mandatory items (each with a quoted `finding`, an enum `status`, and `notes`), and grouped observations.
 - The comparison schema yields a `ComparisonReport`: an `identical` flag, submission requirement, risk level, reasoning, a `changes` array, recommendations, and a final determination.
 - The comparison prompt explicitly allows a "no differences" outcome and forbids inventing changes. Each change carries a textual `location` description (e.g. "bottom-left of the front label") — pixel-coordinate highlighting was removed.
-- The verification schema yields only the per-check results: `fields` (each with application value, exact label text, an enum match status, and a note), a `warningStatement` (present / exact wording / formatting, plus a status), and an `imageQualityNote`. The overall verdict is deliberately **not** in the schema: `runLabelVerification` computes `overallResult` deterministically with `deriveOverallResult()` — FAIL on any `MISMATCH`/`NOT_FOUND` field or a warning FAIL; PASS only when every field is `MATCH` and the warning passes; NEEDS_REVIEW otherwise.
+- The verification schema yields only the per-check results: `fields` (each with application value, exact label text, an enum match status, and a note), a `warningStatement` (present / exact wording / formatting, plus a status), and an `imageQualityNote`. The overall verdict is deliberately **not** in the schema: `runLabelVerification` computes `overallResult` deterministically with `deriveOverallResult()` — FAIL on any `MISMATCH`/`NOT_FOUND` field or a warning FAIL; PASS only when every field is `MATCH` or `NOT_EXPECTED` (absent here but permitted on a different label) and the warning passes; NEEDS_REVIEW otherwise (e.g. the warning absent from the verified label, which 27 CFR 16.21 allows).
 
 ## Type System
 
@@ -275,8 +275,9 @@ All prompts live in `shared/labelAnalysis.ts`.
 
 **Verification prompt** (`buildVerificationPrompt`):
 - Embeds the filed application data (the four required fields plus any optional ones provided) and the beverage category
+- Placement rules from `buildPlacementRules`, keyed off the request's `labelType` (front/back/neck, default front) and the category: spirits/malt front labels expect brand name + class/type + alcohol content together in one field of vision (27 CFR 5.63/7.63), wine front labels require brand name + class/type (27 CFR 4.32), and on back/neck labels absent fields are reported `NOT_EXPECTED` rather than `NOT_FOUND` — while contradictions are `MISMATCH` on any label type
 - Match-judgment rules: capitalization, punctuation, and spacing differences still count as MATCH; equivalent expressions match — "45% Alc./Vol." = "90 Proof" (proof is 2× ABV), "750 mL" = "750ML" = "75 cl"
-- Checks the Government Warning independently of the application data: presence, word-for-word wording against the `GOVERNMENT_WARNING_TEXT` constant, and "GOVERNMENT WARNING:" in caps + bold
+- Checks the Government Warning independently of the application data: presence on this label (27 CFR 16.21 allows the warning on the front, back, or side label, so absence here yields NEEDS_REVIEW with a confirm-on-another-label note, not FAIL), word-for-word wording against the `GOVERNMENT_WARNING_TEXT` constant, and formatting — "GOVERNMENT WARNING:" in caps + bold, with the remainder of the statement not bold
 - Asks for an `imageQualityNote` describing blur, glare, or angle problems (empty string when quality is fine)
 
 ## Error Handling

@@ -205,19 +205,20 @@ interface ApplicationVerificationProps {
 **Single tab**:
 - Application data form (internal `FieldInput` rows): Brand Name, Class/Type, Alcohol Content, and Net Contents required; Bottler/Producer and Country of Origin optional
 - Single-image dropzone/file picker that goes through `prepareImageForAnalysis()` (5MB cap and downscaling apply)
+- "Label type" dropdown (Front / Back / Neck Label, default Front) in the Label Image panel header — sent as `VerifyRequest.labelType` so the prompt applies the right placement rules; changing it clears the previous result
 - Own `BeverageCategorySelector`
 - "Verify Label" button — disabled until an image is present and all required fields are filled (the button label says what is missing)
-- Result panel: overall PASS / FAIL / NEEDS REVIEW banner with an elapsed-seconds badge; an image-quality warning box when `imageQualityNote` is non-empty; a field table (Field / Application / On Label / Status chip / Note); and a Government Health Warning card with three pass/fail checks (present, exact wording, "GOVERNMENT WARNING:" caps + bold)
+- Result panel: overall PASS / FAIL / NEEDS REVIEW banner with an elapsed-seconds badge; an image-quality warning box when `imageQualityNote` is non-empty; a field table (Field / Application / On Label / Status chip / Note) — MATCH green, MISMATCH and NOT FOUND red, NEEDS REVIEW yellow, and NOT EXPECTED a neutral slate chip (the field legitimately lives on another label); and a Government Health Warning card with three pass/fail checks (present, exact wording, "GOVERNMENT WARNING:" caps + bold)
 
 **Batch tab**:
 - Multi-image add via button or drag-and-drop — one image is one application, rendered as one row
-- Inline per-row inputs for the four required fields
-- Optional CSV import (images must be uploaded first), matched to rows by file name; unmatched CSV rows are reported. A CSV template is downloadable in-app — columns: `image`, `brand_name`, `class_type`, `alcohol_content`, `net_contents`, `bottler_name`, `country_of_origin`, `beverage_category`
+- Inline per-row inputs for the four required fields, plus a per-row label-type select (Front / Back / Neck Label, default Front — the fifth control in the row grid); changing it resets that row's result
+- Optional CSV import (images must be uploaded first), matched to rows by file name; unmatched CSV rows are reported. A CSV template is downloadable in-app — columns: `image`, `brand_name`, `class_type`, `alcohol_content`, `net_contents`, `bottler_name`, `country_of_origin`, `beverage_category`, `label_type`. The optional `label_type` column accepts front/back/neck (defaults to front), and the template ships a front-label and a back-label example row
 - The page-level `BeverageCategorySelector` applies to rows without a CSV-specified category
 - "Verify All" runs only the rows with all required fields filled, through a small async pool with concurrency 4
 - Per-row status chip (Ready / Verifying… / PASS / FAIL / NEEDS REVIEW / ERROR) with per-row timing, plus an expandable "Detail" view reusing the same `VerificationResult` rendering
 - Summary line after a run: pass / fail / review (and error) counts plus the total elapsed seconds
-- "Export Results CSV" downloads a per-image results file (overall result, per-field statuses, warning status, timing)
+- "Export Results CSV" downloads a per-image results file (file name, label type, overall result, per-field statuses, warning status, timing)
 
 ### LoadingSpinner.tsx
 
