@@ -1,7 +1,7 @@
 // Request/response contracts shared by the browser client and the Vercel
 // serverless functions. Keep this file free of browser- and Node-only APIs.
 
-import { BeverageCategory, LabelType, ProductRequirements } from '../types';
+import type { BeverageCategory, LabelType, ProductRequirements } from '../types';
 
 // ---- Requests ----
 

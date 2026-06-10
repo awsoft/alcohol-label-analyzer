@@ -2,9 +2,10 @@
 // Isomorphic: used directly by the browser (when the user supplies their own
 // API key) and by the Vercel serverless functions (server-side key).
 
-import { GoogleGenAI, Type, Schema } from '@google/genai';
-import { BeverageCategory } from '../types';
-import {
+import { GoogleGenAI, Type } from '@google/genai';
+import type { Schema } from '@google/genai';
+import type { BeverageCategory } from '../types';
+import type {
   AnalyzeRequest,
   CompareRequest,
   AnalysisReport,

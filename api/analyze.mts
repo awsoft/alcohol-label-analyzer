@@ -1,6 +1,6 @@
 import type { ApiRequest, ApiResponse } from './_types';
 import { runLabelAnalysis } from '../shared/labelAnalysis';
-import { AnalyzeRequest } from '../shared/analysisTypes';
+import type { AnalyzeRequest } from '../shared/analysisTypes';
 
 const isValidImage = (image: unknown): boolean => {
   if (typeof image !== 'object' || image === null) return false;
