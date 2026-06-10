@@ -6,9 +6,16 @@ import { BeverageCategorySelector } from './BeverageCategorySelector';
 import {
   ApplicationData,
   FieldMatchStatus,
+  VerificationLabelType,
   VerificationReport,
 } from '../shared/analysisTypes';
 import { BeverageCategory } from '../types';
+
+const LABEL_TYPE_OPTIONS: { value: VerificationLabelType; name: string }[] = [
+  { value: 'front', name: 'Front Label' },
+  { value: 'back', name: 'Back Label' },
+  { value: 'neck', name: 'Neck Label' },
+];
 
 interface ApplicationVerificationProps {
   disabled?: boolean;
@@ -20,6 +27,7 @@ const FIELD_STATUS_CHIP: Record<FieldMatchStatus, string> = {
   MATCH: 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300',
   MISMATCH: 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300',
   NOT_FOUND: 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300',
+  NOT_EXPECTED: 'bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-300',
   NEEDS_REVIEW: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300',
 };
 
@@ -82,8 +90,9 @@ const parseCsv = (text: string): string[][] => {
 const toCsvCell = (value: string) => /[",\n\r]/.test(value) ? `"${value.replace(/"/g, '""')}"` : value;
 
 const CSV_TEMPLATE =
-  'image,brand_name,class_type,alcohol_content,net_contents,bottler_name,country_of_origin,beverage_category\n' +
-  'front-label.png,OLD TOM DISTILLERY,Kentucky Straight Bourbon Whiskey,45% Alc./Vol. (90 Proof),750 mL,,,distilled-spirits\n';
+  'image,brand_name,class_type,alcohol_content,net_contents,bottler_name,country_of_origin,beverage_category,label_type\n' +
+  'front-label.png,OLD TOM DISTILLERY,Kentucky Straight Bourbon Whiskey,45% Alc./Vol. (90 Proof),750 mL,,,distilled-spirits,front\n' +
+  'back-label.png,OLD TOM DISTILLERY,Kentucky Straight Bourbon Whiskey,45% Alc./Vol. (90 Proof),750 mL,,,distilled-spirits,back\n';
 
 const downloadText = (filename: string, text: string) => {
   const url = URL.createObjectURL(new Blob([text], { type: 'text/csv' }));
@@ -189,6 +198,7 @@ interface BatchRow {
   base64: string;
   mimeType: string;
   app: ApplicationData;
+  labelType: VerificationLabelType;
   category?: BeverageCategory;
   state: 'idle' | 'running' | 'done' | 'error';
   report?: VerificationReport;
@@ -205,6 +215,7 @@ export const ApplicationVerification: React.FC<ApplicationVerificationProps> = (
 
   // ---- Single mode state ----
   const [app, setApp] = useState<ApplicationData>(emptyApplication());
+  const [labelType, setLabelType] = useState<VerificationLabelType>('front');
   const [image, setImage] = useState<{ base64: string; mimeType: string; previewUrl: string; name: string } | null>(null);
   const [isVerifying, setIsVerifying] = useState(false);
   const [result, setResult] = useState<{ report: VerificationReport; ms: number } | null>(null);
@@ -243,6 +254,7 @@ export const ApplicationVerification: React.FC<ApplicationVerificationProps> = (
         images: [{ base64: image.base64, mimeType: image.mimeType }],
         application: app,
         beverageCategory: category,
+        labelType,
       });
       setResult({ report, ms: performance.now() - t0 });
     } catch (e: any) {
@@ -267,6 +279,7 @@ export const ApplicationVerification: React.FC<ApplicationVerificationProps> = (
           base64: prepared.base64,
           mimeType: prepared.mimeType,
           app: emptyApplication(),
+          labelType: 'front',
           state: 'idle',
         };
         setRows(prev => [...prev, row]);
@@ -299,6 +312,7 @@ export const ApplicationVerification: React.FC<ApplicationVerificationProps> = (
         if (!target) { unmatched.push(get('image')); continue; }
         matched++;
         const csvCategory = get('beverage_category') as BeverageCategory;
+        const csvLabelType = get('label_type').toLowerCase() as VerificationLabelType;
         Object.assign(target, {
           app: {
             brandName: get('brand_name'),
@@ -309,6 +323,7 @@ export const ApplicationVerification: React.FC<ApplicationVerificationProps> = (
             countryOfOrigin: get('country_of_origin'),
           },
           category: validCategories.includes(csvCategory) ? csvCategory : undefined,
+          labelType: (['front', 'back', 'neck'] as const).includes(csvLabelType) ? csvLabelType : target.labelType,
           state: 'idle' as const,
           report: undefined,
           error: undefined,
@@ -347,6 +362,7 @@ export const ApplicationVerification: React.FC<ApplicationVerificationProps> = (
           images: [{ base64: row.base64, mimeType: row.mimeType }],
           application: row.app,
           beverageCategory: row.category ?? category,
+          labelType: row.labelType,
         });
         setRows(prev => prev.map(r => r.id === rowId ? { ...r, state: 'done', report, ms: performance.now() - rt0 } : r));
       } catch (e: any) {
@@ -359,11 +375,12 @@ export const ApplicationVerification: React.FC<ApplicationVerificationProps> = (
   };
 
   const exportResults = () => {
-    const lines = ['image,result,brand_name,class_type,alcohol_content,net_contents,warning,time_s'];
+    const lines = ['image,label_type,result,brand_name,class_type,alcohol_content,net_contents,warning,time_s'];
     for (const r of rows) {
       const statusOf = (field: string) => r.report?.fields.find(f => f.field.toLowerCase().includes(field))?.status ?? '';
       lines.push([
         r.fileName,
+        r.labelType,
         r.state === 'error' ? `ERROR: ${r.error ?? ''}` : r.report?.overallResult ?? 'NOT RUN',
         statusOf('brand'), statusOf('class'), statusOf('alcohol'), statusOf('net'),
         r.report?.warningStatement.status ?? '',
@@ -442,7 +459,20 @@ export const ApplicationVerification: React.FC<ApplicationVerificationProps> = (
 
             {/* Label image */}
             <div className="space-y-3">
-              <h3 className="font-semibold text-slate-800 dark:text-slate-200">Label Image</h3>
+              <div className="flex items-center justify-between">
+                <h3 className="font-semibold text-slate-800 dark:text-slate-200">Label Image</h3>
+                <label className="flex items-center text-sm text-slate-600 dark:text-slate-400">
+                  <span className="mr-2">Label type:</span>
+                  <select
+                    value={labelType}
+                    onChange={e => { setLabelType(e.target.value as VerificationLabelType); setResult(null); }}
+                    disabled={disabled || isVerifying}
+                    className="px-2 py-1.5 text-sm border border-slate-300 dark:border-slate-600 rounded-md bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 disabled:opacity-50"
+                  >
+                    {LABEL_TYPE_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.name}</option>)}
+                  </select>
+                </label>
+              </div>
               {image ? (
                 <div className="relative bg-white dark:bg-slate-700 rounded-lg border border-slate-200 dark:border-slate-600 p-3">
                   <button onClick={() => { setImage(null); setResult(null); }} className="absolute top-2 right-2 p-1 bg-red-500 text-white rounded-full hover:bg-red-600" aria-label="Remove image">
@@ -519,7 +549,7 @@ export const ApplicationVerification: React.FC<ApplicationVerificationProps> = (
             </div>
 
             <p className="text-xs text-slate-500 dark:text-slate-400">
-              Each image is one application. Fill the fields inline, or upload all images first and import a CSV (matched by file name). The category selector below applies to rows without a CSV category.
+              Each image is one application. Fill the fields inline, or upload all images first and import a CSV (matched by file name; optional <code>label_type</code> column: front/back/neck). Pick the label type per row — placement rules differ: e.g. the Government Warning may be on any label, and wine requires brand name and class/type on the front (brand) label. The category selector below applies to rows without a CSV category.
             </p>
 
             {rows.length === 0 ? (
@@ -537,13 +567,22 @@ export const ApplicationVerification: React.FC<ApplicationVerificationProps> = (
                   <div key={row.id} className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-600 rounded-lg">
                     <div className="p-3 flex items-center gap-3">
                       <img src={row.previewUrl} alt={row.fileName} className="h-14 w-14 object-contain bg-slate-100 dark:bg-slate-700 rounded flex-shrink-0" />
-                      <div className="grid grid-cols-2 md:grid-cols-4 gap-2 flex-grow min-w-0">
+                      <div className="grid grid-cols-2 md:grid-cols-5 gap-2 flex-grow min-w-0">
                         {([['brandName', 'Brand name'], ['classType', 'Class/type'], ['alcoholContent', 'Alcohol content'], ['netContents', 'Net contents']] as const).map(([key, ph]) => (
                           <input key={key} type="text" value={row.app[key] ?? ''} placeholder={`${ph} *`}
                             onChange={e => updateRowField(row.id, key, e.target.value)}
                             disabled={disabled || isBatchRunning}
                             className="px-2 py-1.5 text-xs border border-slate-300 dark:border-slate-600 rounded bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 disabled:opacity-50" />
                         ))}
+                        <select
+                          value={row.labelType}
+                          onChange={e => setRows(prev => prev.map(r => r.id === row.id ? { ...r, labelType: e.target.value as VerificationLabelType, state: 'idle', report: undefined, error: undefined } : r))}
+                          disabled={disabled || isBatchRunning}
+                          aria-label={`Label type for ${row.fileName}`}
+                          className="px-2 py-1.5 text-xs border border-slate-300 dark:border-slate-600 rounded bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 disabled:opacity-50"
+                        >
+                          {LABEL_TYPE_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.name}</option>)}
+                        </select>
                       </div>
                       <div className="flex items-center gap-2 flex-shrink-0">
                         {rowChip(row)}

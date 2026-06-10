@@ -69,13 +69,23 @@ export interface ApplicationData {
   countryOfOrigin?: string;
 }
 
+/** Which physical label of the container is being verified. */
+export type VerificationLabelType = 'front' | 'back' | 'neck';
+
 export interface VerifyRequest {
   images: ComparisonImage[];
   application: ApplicationData;
   beverageCategory: BeverageCategory;
+  /** Defaults to 'front' when omitted. */
+  labelType?: VerificationLabelType;
 }
 
-export type FieldMatchStatus = 'MATCH' | 'MISMATCH' | 'NOT_FOUND' | 'NEEDS_REVIEW';
+/**
+ * NOT_FOUND = required on this label type but absent (a problem).
+ * NOT_EXPECTED = absent, but the regulations allow it on a different label
+ * (27 CFR 4.32 / 5.63 / 7.63 placement rules) — not a failure.
+ */
+export type FieldMatchStatus = 'MATCH' | 'MISMATCH' | 'NOT_FOUND' | 'NOT_EXPECTED' | 'NEEDS_REVIEW';
 
 export interface FieldVerification {
   /** Application field name, e.g. "Brand Name" */
@@ -105,7 +115,12 @@ export interface VerificationReport {
   imageQualityNote: string;
 }
 
-/** PASS only when everything matches; FAIL on any hard mismatch; NEEDS_REVIEW otherwise. */
+/**
+ * PASS when every field matches (or is legitimately on another label) and the
+ * warning passes; FAIL on any contradiction, hard absence, or warning failure;
+ * NEEDS_REVIEW otherwise (e.g. warning absent from this label — 27 CFR 16.21
+ * allows it on front, back, or side, so a single label can't prove absence).
+ */
 export const deriveOverallResult = (
   fields: FieldVerification[],
   warning: WarningVerification
@@ -113,7 +128,7 @@ export const deriveOverallResult = (
   if (fields.some(f => f.status === 'MISMATCH' || f.status === 'NOT_FOUND') || warning.status === 'FAIL') {
     return 'FAIL';
   }
-  if (fields.every(f => f.status === 'MATCH') && warning.status === 'PASS') {
+  if (fields.every(f => f.status === 'MATCH' || f.status === 'NOT_EXPECTED') && warning.status === 'PASS') {
     return 'PASS';
   }
   return 'NEEDS_REVIEW';

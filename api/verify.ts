@@ -44,6 +44,10 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
     res.status(400).json({ error: 'Request must include beverageCategory.' });
     return;
   }
+  if (body.labelType !== undefined && !['front', 'back', 'neck'].includes(body.labelType)) {
+    res.status(400).json({ error: 'labelType must be "front", "back", or "neck".' });
+    return;
+  }
 
   try {
     const report = await runLabelVerification(apiKey, body as VerifyRequest);

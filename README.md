@@ -5,6 +5,7 @@ A React-based web application for analyzing alcohol label compliance using AI-po
 ## Features
 
 - **Application Verification**: Enter the COLA application data (brand name, class/type, alcohol content, net contents) and verify the label matches it field-by-field — with human-like judgment (case/punctuation differences match; `45% Alc./Vol.` ≡ `90 Proof`) and an exact Government Warning check. Typical result in **~2–3 seconds**
+- **Label-type aware placement rules**: Tell it whether you're verifying the front, back, or neck label and the verdicts follow the actual CFR placement rules — the Government Warning may be on *any* label (27 CFR 16.21: absent here → "needs review", not a failure; and only "GOVERNMENT WARNING:" may be bold), spirits/malt require brand + class + ABV together in one field of vision (27 CFR 5.63/7.63), and wine requires brand + class on the brand label (27 CFR 4.32). Fields that legitimately live on another label report as "not expected" instead of failing
 - **Batch Verification**: Drop many label images, fill application data inline or import a CSV, and verify them all in parallel with per-application PASS/FAIL verdicts and a results CSV export
 - **Image Upload**: Upload alcohol label images for analysis
 - **Multi-Image Support**: Analyze multiple label images (front, back, neck, side labels) in a single submission

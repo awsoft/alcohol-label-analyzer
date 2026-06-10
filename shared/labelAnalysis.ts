@@ -39,7 +39,7 @@ const BASE_MANDATORY_ITEMS = `
 3. "Alcohol Content (ABV)" — Quote the statement as shown (e.g. "X% ALC. BY VOL."). Is the formatting correct per TTB rules?
 4. "Net Contents" — Quote as shown (e.g. "750 mL", "12 FL OZ"). Are the units correct for the product type and do placement/size meet TTB requirements?
 5. "Name and Address of Bottler/Packer or Importer" — Quote the statement type (e.g. "Bottled by", "Imported by"), company name, and city/state. Does the phrasing meet TTB requirements?
-6. "Government Health Warning Statement" — Must read exactly: "GOVERNMENT WARNING:" in bold capitals, followed by "(1) According to the Surgeon General, women should not drink alcoholic beverages during pregnancy because of the risk of birth defects. (2) Consumption of alcoholic beverages impairs your ability to drive a car or operate machinery, and may cause health problems." Is it present, legible, conspicuous, and worded correctly?
+6. "Government Health Warning Statement" — Must read exactly: "GOVERNMENT WARNING:" in bold capitals (the remainder must NOT be bold), followed by "(1) According to the Surgeon General, women should not drink alcoholic beverages during pregnancy because of the risk of birth defects. (2) Consumption of alcoholic beverages impairs your ability to drive a car or operate machinery, and may cause health problems." Per 27 CFR 16.21 it may appear on the front, back, or side label, separate and apart from other information. Is it present on any provided image, legible, conspicuous, and worded correctly?
 7. "Country of Origin" — Mandatory for imported products only (e.g. "PRODUCT OF FRANCE"). Use status NOT_REQUIRED for domestic products.`;
 
 const CATEGORY_ITEMS: Record<BeverageCategory, string> = {
@@ -149,6 +149,35 @@ Finally report: "submissionRequired" (required / recommended / not-required / un
 
 // ---- Prompts: application verification ----
 
+/**
+ * Placement rules per 27 CFR:
+ * - Spirits (5.63) & malt (7.63), as modernized by T.D. TTB-176: brand name,
+ *   class/type, and alcohol content must share ONE field of vision (a single
+ *   side of the container); all other items may appear on any label.
+ * - Wine (4.32): brand name and class/type must be on the brand (front)
+ *   label; name/address, net contents, and alcohol content may be on any label.
+ * - Health warning (16.21): may be on the front, back, or side label.
+ */
+const buildPlacementRules = (req: VerifyRequest): string => {
+  const labelType = req.labelType ?? 'front';
+  const isWine = req.beverageCategory === 'wine';
+
+  if (labelType === 'front') {
+    if (isWine) {
+      return `THIS IMAGE IS THE FRONT (BRAND) LABEL of a wine container. Placement rules (27 CFR 4.32):
+- Brand Name and Class/Type are REQUIRED on this label. If absent, use NOT_FOUND.
+- Alcohol Content, Net Contents, Bottler Name/Address, and Country of Origin may legally appear on a different label. If one is absent here, use NOT_EXPECTED and note that it may appear on another label; if present, judge it normally.`;
+    }
+    return `THIS IMAGE IS THE FRONT LABEL. Placement rules (27 CFR 5.63 / 7.63): Brand Name, Class/Type, and Alcohol Content must appear together in one field of vision (a single side of the container), and the front label is normally that side.
+- If ANY of Brand Name, Class/Type, or Alcohol Content appears on this label, ALL THREE are expected here — use NOT_FOUND for a missing one and note that the trio must share a single field of vision.
+- Net Contents, Bottler Name/Address, and Country of Origin may legally appear on a different label. If absent here, use NOT_EXPECTED with a note; if present, judge normally.`;
+  }
+
+  return `THIS IMAGE IS THE ${labelType.toUpperCase()} LABEL — not the principal display. TTB placement rules allow most mandatory information to be on a different label (brand name/class/type${isWine ? '' : '/alcohol content'} belong ${isWine ? 'on the brand label' : 'together in one field of vision, normally the front'}).
+- For every application field that is absent from THIS label, use NOT_EXPECTED with a note that it should appear on the ${isWine ? 'brand label' : 'front of the container'} — that is not a problem with this label.
+- For any application field that IS visible on this label, judge it normally: information that contradicts the application is a MISMATCH wherever it appears.`;
+};
+
 export const buildVerificationPrompt = (req: VerifyRequest): string => {
   const app = req.application;
   const optionalLines = [
@@ -166,18 +195,21 @@ APPLICATION DATA:
 ${optionalLines}
 Beverage category: ${req.beverageCategory.replace('-', ' ')}
 
+${buildPlacementRules(req)}
+
 For EACH application field above, find the corresponding text on the label and judge:
 - MATCH — same information. Apply human judgment: differences in capitalization, punctuation, or spacing are still a MATCH (mention the difference in the note). Equivalent expressions match: "45% Alc./Vol." = "45% ALC/VOL" = "90 Proof" (proof is exactly 2x ABV); "750 mL" = "750ML" = "75 cl".
-- MISMATCH — substantively different (different name, different number, different designation).
-- NOT_FOUND — does not appear anywhere on the label.
+- MISMATCH — substantively different (different name, different number, different designation), wherever it appears.
+- NOT_FOUND — absent from this label even though it is required on this label type (see placement rules above).
+- NOT_EXPECTED — absent from this label, but permitted to appear on a different label per the placement rules above.
 - NEEDS_REVIEW — visible but too unclear or ambiguous to judge confidently.
 Report labelValue as the exact text shown on the label, or "not found".
 
-Also verify the Government Health Warning Statement (mandatory on all labels, independent of the application):
-- present: is any government warning statement on the label?
+Also verify the Government Health Warning Statement. Per 27 CFR 16.21 it may appear on the front, back, OR side label, separate and apart from all other information:
+- present: is the warning statement on THIS label?
 - exactWording: does it match this text word-for-word: "${GOVERNMENT_WARNING_TEXT}"
-- formattingCorrect: does "GOVERNMENT WARNING:" appear in all capital letters and bold type?
-- status: PASS only if present with exact wording and correct formatting; FAIL if missing, reworded, or wrongly formatted; NEEDS_REVIEW only if illegible.
+- formattingCorrect: "GOVERNMENT WARNING:" must be in capital letters AND bold type, and the REMAINDER of the statement must NOT be in bold type.
+- status: PASS only if present here with exact wording and correct formatting. FAIL if present but reworded or wrongly formatted. If it is simply absent from this label, use NEEDS_REVIEW with a note that the warning may appear on another label of the container and the agent should confirm it there — absence from one label alone is not a violation.
 
 If the photo is blurry, angled, glared, or partially unreadable, describe it briefly in imageQualityNote; use an empty string if quality is fine.
 
@@ -273,7 +305,7 @@ const VERIFICATION_SCHEMA: Schema = {
           field: { type: Type.STRING },
           applicationValue: { type: Type.STRING },
           labelValue: { type: Type.STRING },
-          status: { type: Type.STRING, enum: ['MATCH', 'MISMATCH', 'NOT_FOUND', 'NEEDS_REVIEW'] },
+          status: { type: Type.STRING, enum: ['MATCH', 'MISMATCH', 'NOT_FOUND', 'NOT_EXPECTED', 'NEEDS_REVIEW'] },
           note: { type: Type.STRING },
         },
         required: ['field', 'applicationValue', 'labelValue', 'status', 'note'],
