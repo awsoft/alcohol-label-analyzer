@@ -1,6 +1,9 @@
-import type { ApiRequest, ApiResponse } from './_types';
-import { runLabelComparison } from '../shared/labelAnalysis';
-import type { CompareRequest } from '../shared/analysisTypes';
+// NOTE: runtime-relative imports use explicit .ts extensions — Vercel's Node
+// runtime executes these files natively (type stripping, no bundler), so
+// specifiers must resolve to real files.
+import type { ApiRequest, ApiResponse } from './_types.ts';
+import { runLabelComparison } from '../shared/labelAnalysis.ts';
+import type { CompareRequest } from '../shared/analysisTypes.ts';
 
 const isValidImage = (image: unknown): boolean => {
   if (typeof image !== 'object' || image === null) return false;

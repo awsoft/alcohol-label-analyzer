@@ -1,5 +1,8 @@
-import type { ApiRequest, ApiResponse } from './_types';
-import { testGeminiConnection } from '../shared/labelAnalysis';
+// NOTE: runtime-relative imports use explicit .ts extensions — Vercel's Node
+// runtime executes these files natively (type stripping, no bundler), so
+// specifiers must resolve to real files.
+import type { ApiRequest, ApiResponse } from './_types.ts';
+import { testGeminiConnection } from '../shared/labelAnalysis.ts';
 
 export default async function handler(req: ApiRequest, res: ApiResponse) {
   if (req.method !== 'GET') {
