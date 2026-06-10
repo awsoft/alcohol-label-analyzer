@@ -1,8 +1,8 @@
-// NOTE: runtime-relative imports use explicit .ts extensions — Vercel's Node
-// runtime executes these files natively (type stripping, no bundler), so
-// specifiers must resolve to real files.
-import type { ApiRequest, ApiResponse } from './_types.ts';
-import { testGeminiConnection } from '../shared/labelAnalysis.ts';
+// NOTE: Vercel's Node builder compiles each file here to ESM .js without
+// rewriting import specifiers, so relative imports must use .js (the compiled
+// filenames); tsc's bundler resolution maps them back to the .ts sources.
+import type { ApiRequest, ApiResponse } from './_types.js';
+import { testGeminiConnection } from '../shared/labelAnalysis.js';
 
 export default async function handler(req: ApiRequest, res: ApiResponse) {
   if (req.method !== 'GET') {
