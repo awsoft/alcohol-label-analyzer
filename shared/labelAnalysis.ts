@@ -12,8 +12,8 @@ import type {
   AnalysisReport,
   ComparisonReport,
   VerificationReport,
-} from './analysisTypes';
-import { deriveOverallResult } from './analysisTypes';
+} from './analysisTypes.js';
+import { deriveOverallResult } from './analysisTypes.js';
 
 export const GEMINI_MODEL = 'gemini-3.5-flash';
 // Verification is latency-critical (agents abandon tools slower than ~5s), so it
