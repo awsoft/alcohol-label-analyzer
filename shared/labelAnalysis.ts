@@ -12,7 +12,7 @@ import type {
   ComparisonReport,
 } from './analysisTypes';
 
-export const GEMINI_MODEL = 'gemini-2.5-flash';
+export const GEMINI_MODEL = 'gemini-3.5-flash';
 
 // ---- Prompts: new-label analysis ----
 

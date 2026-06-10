@@ -199,7 +199,7 @@ function buildComparisonPrompt(req: CompareRequest): string
 #### `GEMINI_MODEL`
 
 ```typescript
-const GEMINI_MODEL = 'gemini-2.5-flash';
+const GEMINI_MODEL = 'gemini-3.5-flash';
 ```
 
 ## Type Definitions
@@ -460,7 +460,7 @@ There are no client-side API key environment variables. A user-supplied key is s
 
 ### API Versions
 
-- **Gemini model**: `gemini-2.5-flash`
+- **Gemini model**: `gemini-3.5-flash`
 - **@google/genai SDK**: ^1.52.0
 - **jsPDF**: ^4.2.1 (jspdf-autotable and @types/jspdf removed)
 - **React**: ^19.1

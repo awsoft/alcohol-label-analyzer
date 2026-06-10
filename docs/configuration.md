@@ -172,7 +172,7 @@ export const GEMINI_SUPPORTED_MIME_TYPES = [
 AI prompts and the Gemini calls live in `shared/labelAnalysis.ts`, which is isomorphic: it runs in the browser (browser key) and in the serverless functions (server key).
 
 ```typescript
-export const GEMINI_MODEL = 'gemini-2.5-flash';
+export const GEMINI_MODEL = 'gemini-3.5-flash';
 
 export const buildAnalysisPrompt = (req: AnalyzeRequest): string => { /* ... */ };
 export const buildComparisonPrompt = (req: CompareRequest): string => { /* ... */ };

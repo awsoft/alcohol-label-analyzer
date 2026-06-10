@@ -234,7 +234,7 @@ const CATEGORY_ITEMS: Record<BeverageCategory, string> = {
 
 Analysis logic is layered so the same code serves both key paths:
 
-1. **`shared/labelAnalysis.ts`** — prompt builders, Gemini `responseSchema` definitions, and the runners `runLabelAnalysis`, `runLabelComparison`, and `testGeminiConnection`. The model is pinned via `GEMINI_MODEL = 'gemini-2.5-flash'`. Because Gemini is called with `responseMimeType: 'application/json'` and a schema, reports come back as structured JSON — no markdown parsing.
+1. **`shared/labelAnalysis.ts`** — prompt builders, Gemini `responseSchema` definitions, and the runners `runLabelAnalysis`, `runLabelComparison`, and `testGeminiConnection`. The model is pinned via `GEMINI_MODEL = 'gemini-3.5-flash'`. Because Gemini is called with `responseMimeType: 'application/json'` and a schema, reports come back as structured JSON — no markdown parsing.
 2. **`api/*.ts`** — thin Vercel handlers that validate the request, read `GEMINI_API_KEY` from the server environment, and call the shared runner.
 3. **`services/geminiService.ts`** — browser entry points: `analyzeLabels`, `compareLabels`, `getApiKeyStatus` (async), `testApiConnection`, and `getLocalApiKey`. Each analysis call uses a locally saved key directly when present, otherwise POSTs to the corresponding `/api` route — rejecting payloads over ~4.2 MB client-side to stay under Vercel's ~4.5 MB body limit.
 

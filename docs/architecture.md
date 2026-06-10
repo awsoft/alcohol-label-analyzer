@@ -35,7 +35,7 @@ Both paths run the same code from `shared/` for prompt construction, response sc
 
 ### AI Integration
 - **@google/genai SDK** (^1.52.0): Official client for the Gemini API
-- **Gemini 2.5 Flash** (`gemini-2.5-flash`): Called with `responseMimeType: 'application/json'` and a response schema for structured output
+- **Gemini 3.5 Flash** (`gemini-3.5-flash`): Called with `responseMimeType: 'application/json'` and a response schema for structured output
 
 ### Backend
 - **Vercel serverless functions** in `/api`: Hold the server-side `GEMINI_API_KEY` so it never ships to the browser
