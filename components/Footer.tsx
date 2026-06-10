@@ -35,7 +35,7 @@ export const Footer: React.FC = () => {
             </a>
           </div>
           <div className="text-center text-gray-600 dark:text-gray-300">
-            <p>&copy; 2025 by Aardwolf Consulting LLC. All rights reserved.</p>
+            <p>&copy; {new Date().getFullYear()} by Aardwolf Consulting LLC. All rights reserved.</p>
           </div>
         </div>
       </div>
