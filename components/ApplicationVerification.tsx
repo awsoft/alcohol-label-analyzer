@@ -1,5 +1,5 @@
 import React, { useRef, useState } from 'react';
-import { AlertTriangle, CheckCircle, Download, FileSpreadsheet, HelpCircle, Loader2, Upload, X, XCircle, Zap } from 'lucide-react';
+import { AlertTriangle, CheckCircle, ClipboardCheck, Download, FileSpreadsheet, HelpCircle, Loader2, Upload, X, XCircle, Zap } from 'lucide-react';
 import { verifyLabel } from '../services/geminiService';
 import { prepareImageForAnalysis } from '../services/imageProcessingService';
 import { BeverageCategorySelector } from './BeverageCategorySelector';
@@ -413,7 +413,10 @@ export const ApplicationVerification: React.FC<ApplicationVerificationProps> = (
   return (
     <div className="space-y-6">
       <div className="text-center">
-        <h2 className="text-3xl font-bold text-sky-600 dark:text-sky-400 mb-2">Verify Label Against Application</h2>
+        <div className="flex items-center justify-center mb-4">
+          <ClipboardCheck className="h-8 w-8 text-sky-600 dark:text-sky-400 mr-3" />
+          <h2 className="text-3xl font-bold text-sky-600 dark:text-sky-400">Verify Label Against Application</h2>
+        </div>
         <p className="text-slate-600 dark:text-slate-400 max-w-2xl mx-auto">
           Enter the application data, upload the label, and get a field-by-field match verdict — including the exact Government Warning check.
         </p>

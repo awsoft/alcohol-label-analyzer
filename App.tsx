@@ -215,7 +215,15 @@ const App: React.FC = () => {
             <LabelComparisonComponent disabled={apiKeyMissing} />
           ) : (
             <>
-              <h2 className="text-3xl font-bold mb-8 text-sky-600 dark:text-sky-400 text-center transition-colors duration-300">Analyze Your Alcohol Labels</h2>
+              <div className="text-center mb-8">
+                <div className="flex items-center justify-center mb-4">
+                  <FileSearch className="h-8 w-8 text-sky-600 dark:text-sky-400 mr-3" />
+                  <h2 className="text-3xl font-bold text-sky-600 dark:text-sky-400">Analyze Your Alcohol Labels</h2>
+                </div>
+                <p className="text-slate-600 dark:text-slate-400 max-w-2xl mx-auto">
+                  Upload your label images (front, back, neck, and more), choose your beverage category, and get a comprehensive TTB compliance report — every mandatory element checked, downloadable as a PDF.
+                </p>
+              </div>
               
               <div className="flex flex-col gap-8">
                 <div className="w-full max-w-4xl mx-auto space-y-6">
